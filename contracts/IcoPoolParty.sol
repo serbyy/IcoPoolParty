@@ -8,6 +8,7 @@ import "./interfaces/IErc20Token.sol";
 import "./interfaces/IForegroundTokenSale.sol";
 
 /**
+ * @author Shane van Coller 1/24/2018
  * @title Group Purchase for ICO contract
  */
 contract IcoPoolParty is Ownable, Pausable {
@@ -44,14 +45,7 @@ contract IcoPoolParty is Ownable, Pausable {
 	 * @notice Check to see if water mark has been exceeded
 	 */
 	modifier assessWaterMark {
-		// If the total investment exceeds the watermark, stop any further investments and move to 'InReview' state
-		if (totalCurrentInvestments >= waterMark) {
-			contractStatus = Status.InReview;
-		}
-
-		// If total investment is below the watermark, set the state to 'Open'
-		// TODO: Does this make sense? Always set the status to open if total < watermark even if the contract was explicitly set to InReview for example?
-		// TODO: Should we implement whenPaused/whenNotPaused modifiers?
+		// If total investment is below the watermark, reopen the pool
 		if (totalCurrentInvestments < waterMark) {
 			contractStatus = Status.Open;
 		}
@@ -70,7 +64,8 @@ contract IcoPoolParty is Ownable, Pausable {
 		uint256 _groupTokenPrice,
 		IForegroundTokenSale _icoSaleAddress,
 		IErc20Token _icoTokenAddress
-	) public
+	)
+		public
 	{
 		waterMark = _waterMark;
 		groupTokenPrice = _groupTokenPrice;
@@ -79,10 +74,21 @@ contract IcoPoolParty is Ownable, Pausable {
 	}
 
 	/**
+	 * @notice Default fallback function, reverts if called
+	 */
+	function() public payable {
+		revert();
+	}
+
+	/**
 	 * @notice Add funds to the group purchases pool
 	 * @dev Contract status needs to be 'Open' in order to contribute additional funds
 	 */
-	function addFundsToPool() public assessWaterMark payable {
+	function addFundsToPool()
+		public
+		assessWaterMark
+		payable
+	{
 		require(contractStatus == Status.Open);
 
 		uint256 _amountInvested = msg.value;
@@ -96,7 +102,10 @@ contract IcoPoolParty is Ownable, Pausable {
 	 * @notice Can withdraw funds from the group purchase pool at any time
 	 * @dev There is no penalty for user withdrawing their contribution - only pay the gas fee for the transaction
 	 */
-	function withdrawFundsFromPool() public assessWaterMark {
+	function withdrawFundsFromPool()
+		public
+		assessWaterMark
+	{
 		uint256 _amountToRefund = investments[msg.sender];
 		investments[msg.sender] = 0;
 		totalCurrentInvestments = totalCurrentInvestments.sub(_amountToRefund);
@@ -148,12 +157,28 @@ contract IcoPoolParty is Ownable, Pausable {
 		uint256 _totalContribution = investments[msg.sender];
 		investments[msg.sender] = 0;
 
-		uint256 _contributionPercentage = _totalContribution.mul(100).div(totalCurrentInvestments);
-		uint256 _tokensDue = totalTokensReceived.mul(_contributionPercentage).div(100);
+		uint256 _tokensDue = getUserTokensDueForAmount(_totalContribution);
 
 		icoTokenAddress.transfer(msg.sender, _tokensDue);
 
 		TokensTransferred(msg.sender, _totalContribution, _tokensDue, now);
+	}
+
+	/**
+	 * @notice Allows anyone to query the number of tokens due for a given address
+	 * @dev Returns 0 unless the tokens have been released by the sale contract (totalTokensReceived > 0)
+	 * @param _user The user address of the account to look up
+	 */
+	function getTotalTokensDue(address _user)
+		public
+		view
+		returns (uint256)
+	{
+		uint256 _tokensDue = 0;
+		if (totalTokensReceived > 0) {
+			_tokensDue = getUserTokensDueForAmount(investments[_user]);
+		}
+		return _tokensDue;
 	}
 
 	/**
@@ -186,7 +211,10 @@ contract IcoPoolParty is Ownable, Pausable {
 	 * @notice Prevent any new funds being added to the pool - withdrawals are still allowed
 	 * @dev Contract state is moved into 'InReview' for KYC compliance check.
 	 */
-	function updateState(Status _state) public onlyOwner {
+	function updateState(Status _state)
+		public
+		onlyOwner
+	{
 		contractStatus = _state;
 	}
 
@@ -195,7 +223,10 @@ contract IcoPoolParty is Ownable, Pausable {
 	 * @dev A small fee is charged to the person being ejected from the pool (only enough to cover gas costs of the transaction) but only if the invested amount is greater than the fee.
 	 * @param _ejectedInvestor Address of the person to eject from the pool.
 	 */
-	function ejectInvestor(address _ejectedInvestor) public onlyOwner {
+	function ejectInvestor(address _ejectedInvestor)
+		public
+		onlyOwner
+	{
 		uint256 _amountToRefund = investments[_ejectedInvestor];
 		require(_amountToRefund > 0);
 		investments[_ejectedInvestor] = 0;
@@ -211,7 +242,18 @@ contract IcoPoolParty is Ownable, Pausable {
 		InvestorEjected(_ejectedInvestor, _fee, _amountToRefund.sub(_fee), now);
 	}
 
-	function() public payable {
-		revert();
+	/**
+     * @notice Private function that returns the number of tokens due based on the user and account balance
+     * @dev Reusable function that helps prevent re-entracy - see claimTokens()
+     * @param _userInvestmentAmount The investment amount used to calculate the tokens due
+     */
+	function getUserTokensDueForAmount(uint256 _userInvestmentAmount)
+		private
+		view
+		returns (uint256)
+	{
+		uint256 _contributionPercentage = _userInvestmentAmount.mul(100).div(totalCurrentInvestments);
+		return totalTokensReceived.mul(_contributionPercentage).div(100);
 	}
+
 }
