@@ -10,7 +10,7 @@ import "./interfaces/IForegroundTokenSale.sol";
 /**
  * @title Group Purchase for ICO contract
  */
-contract GroupPurchaseIco is Ownable, Pausable {
+contract IcoPoolParty is Ownable, Pausable {
 	using SafeMath for uint256;
 
 	uint256 public waterMark;
@@ -65,7 +65,7 @@ contract GroupPurchaseIco is Ownable, Pausable {
 	 * @param _icoSaleAddress Address of the token sale -> used to buy the tokens
 	 * @param _icoTokenAddress Address of the token being sold -> used to transfer tokens to investors once received
 	 */
-	function GroupPurchaseIco(
+	function IcoPoolParty(
 		uint256 _waterMark,
 		uint256 _groupTokenPrice,
 		IForegroundTokenSale _icoSaleAddress,

@@ -1,4 +1,4 @@
-var GroupPurchaseIco = artifacts.require("./GroupPurchaseIco.sol");
+var IcoPoolParty = artifacts.require("./IcoPoolParty.sol");
 
 module.exports = function (deployer, network, accounts) {
 	let waterMark = web3.toWei("1000", "ether");
@@ -6,5 +6,5 @@ module.exports = function (deployer, network, accounts) {
 	let icoSaleAddress = "";
 	let icoTokenAddress = "";
 
-	deployer.deploy(GroupPurchaseIco, waterMark, groupTokenPrice, icoSaleAddress, icoTokenAddress);
+	deployer.deploy(IcoPoolParty, waterMark, groupTokenPrice, icoSaleAddress, icoTokenAddress);
 };
