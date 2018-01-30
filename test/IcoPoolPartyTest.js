@@ -83,20 +83,6 @@ contract('Group Purchase ICO', function (accounts) {
 			await icoPoolPartyContract.addFundsToPool({from: accounts[0], value: web3.toWei("6", "ether")});
 		});
 
-		it("Should add funds in incorrect state", async () => {
-			let totalInvestment = await icoPoolPartyContract.totalCurrentInvestments();
-			let watermark = await icoPoolPartyContract.waterMark();
-			assert.equal(totalInvestment, web3.toWei("11", "ether"), "Incorrect contract balance");
-			assert.isAbove(totalInvestment, watermark, "Total is less than watermark");
-			let state = await icoPoolPartyContract.contractStatus();
-			assert.equal(state, Status.Open, "Contract should be 'Open' state, but is " + state);
-
-			await expectThrow(icoPoolPartyContract.addFundsToPool({from: accounts[2], value: web3.toWei("1", "ether")}));
-			state = await icoPoolPartyContract.contractStatus();
-			smartLog("State after throw is " + state);
-			/*assert.equal(state, Status.InReview, "Contract should be 'InReview' atate, but is " + state);*/
-		});
-
 		it("Should manually purchase token", async () => {
 			web3.eth.sendTransaction({from: accounts[2], to: tokenSaleContract.address, value: web3.toWei("1.7", "ether"), gas: 300000 });
 			smartLog("Sale Contract Balance after 1st purchase [" + web3.fromWei(web3.eth.getBalance(tokenSaleContract.address)) + "]");
@@ -123,21 +109,56 @@ contract('Group Purchase ICO', function (accounts) {
 			smartLog("AFTER Account 0 balance [" + web3.fromWei(web3.eth.getBalance(accounts[0])) + "]");
 		});
 
+		it("Should add funds in incorrect state", async () => {
+			let totalInvestment = await icoPoolPartyContract.totalCurrentInvestments();
+			let watermark = await icoPoolPartyContract.waterMark();
+			assert.equal(totalInvestment, web3.toWei("11", "ether"), "Incorrect contract balance");
+			assert.isAbove(totalInvestment, watermark, "Total is less than watermark");
+			let state = await icoPoolPartyContract.contractStatus();
+			assert.equal(state, Status.ClaimTokens, "Contract should be 'ClaimTokens' state, but is " + state);
+
+			await expectThrow(icoPoolPartyContract.addFundsToPool({from: accounts[2], value: web3.toWei("1", "ether")}));
+		});
+
+
+		it("Should get 0 tokens due balance", async () => {
+			var tokensDue0 = await icoPoolPartyContract.getTotalTokensDue(accounts[0]);
+			smartLog("Account 0 has [" + tokensDue0 + "] tokens due");
+			assert.equal(tokensDue0, 0, "Account 0 should 0 tokens");
+			var tokensDue1 = await icoPoolPartyContract.getTotalTokensDue(accounts[1]);
+			smartLog("Account 1 has [" + tokensDue1 + "] tokens due");
+			assert.equal(tokensDue0, 0, "Account 1 should 0 tokens");
+		});
+
 		it("Should claim tokens from ICO", async () => {
 			await icoPoolPartyContract.claimTokensFromIco({from:accounts[7]});
 			smartLog("Group Purchase token balance [" + await dealTokenContract.balanceOf(icoPoolPartyContract.address) + "]");
 		});
 
+		it("Should get correct tokens due balance", async () => {
+			var tokensDue0 = await icoPoolPartyContract.getTotalTokensDue(accounts[0]);
+			smartLog("Account 0 has [" + tokensDue0 + "] tokens due");
+			assert.isAbove(tokensDue0, 0, "Account 0 should have more than 0 tokens");
+			var tokensDue1 = await icoPoolPartyContract.getTotalTokensDue(accounts[1]);
+			smartLog("Account 1 has [" + tokensDue1 + "] tokens due");
+			assert.isAbove(tokensDue0, 0, "Account 1 should have more than 0 tokens");
+		});
+
 		it("Should claim tokens", async () => {
 			smartLog("Account 0 eth investment [" + web3.fromWei(await icoPoolPartyContract.investments(accounts[0])) + "]");
+
 			await icoPoolPartyContract.claimTokens({from:accounts[0]});
 			smartLog("Account 0 token balance [" + await dealTokenContract.balanceOf(accounts[0]) + "]");
 			assert.isAbove(await dealTokenContract.balanceOf(accounts[0]), 0, "Token balance must be greater than 0");
 
 			await icoPoolPartyContract.claimTokens({from:accounts[1]});
 			smartLog("Account 1 token balance [" + await dealTokenContract.balanceOf(accounts[1]) + "]");
+			assert.isAbove(await dealTokenContract.balanceOf(accounts[1]), 0, "Token balance must be greater than 0");
 
-			smartLog("Account 0 token balance [" + await dealTokenContract.balanceOf(icoPoolPartyContract.address) + "]");
+			smartLog("Pool Party token balance [" + await dealTokenContract.balanceOf(icoPoolPartyContract.address) + "]");
+
+			smartLog("Account 0 has [" + await icoPoolPartyContract.getTotalTokensDue(accounts[0]) + "] tokens due");
+			smartLog("Account 1 has [" + await icoPoolPartyContract.getTotalTokensDue(accounts[1]) + "] tokens due");
 		});
 	});
 
