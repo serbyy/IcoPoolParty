@@ -108,6 +108,7 @@ contract GroupPurchaseIco is Ownable, Pausable {
 	/**
 	 * @notice Once the watermark has been reached and the participants approved, the pool funds can be released to the Sale contract in exchange for tokens
 	 * @dev Subsidy amount is validated by checking to see if we will receive the correct number of tokens based on the configured parameters
+	 *      address.call is used to get around the fact that the minimum gas amount is sent with a .send or .transfer - this call needs more than the minimum
 	 */
 	function releaseFundsToSale() public payable {
 		require(contractStatus == Status.Approved);
@@ -118,14 +119,18 @@ contract GroupPurchaseIco is Ownable, Pausable {
 		uint256 _feeAmount = totalCurrentInvestments.mul(FEE_PERCENTAGE).div(100);
 
 		//TODO: Check for re-entrancy
-		uint256 _amountToRelease = totalCurrentInvestments.add(msg.value);
-		icoSaleAddress.transfer(_amountToRelease);
+		uint256 _amountToRelease = totalCurrentInvestments.add(msg.value.sub(_feeAmount));
+
+		//Release funds to sale contract
+		assert(address(icoSaleAddress).call.gas(300000).value(_amountToRelease)());
 
 		var (actualTokenBalance,) = icoSaleAddress.purchases(address(this));
 		assert(_expectedTokenBalance == actualTokenBalance);
 		assert(this.balance >= _feeAmount);
-		owner.transfer(_feeAmount);
-		//owner.transfer(this.balance);
+
+		//Transfer the fee
+		assert(owner.call.value(_feeAmount)());
+		//???assert(owner.call.gas(100000).value(this.balance)());
 
 		contractStatus = Status.ClaimTokens;
 		TokensBought(totalCurrentInvestments, msg.value, icoSaleAddress, now);
@@ -140,11 +145,11 @@ contract GroupPurchaseIco is Ownable, Pausable {
 		require(investments[msg.sender] > 0);
 		require(totalTokensReceived > 0);
 
-		uint _totalContribution = investments[msg.sender];
+		uint256 _totalContribution = investments[msg.sender];
 		investments[msg.sender] = 0;
 
-		uint256 _contributionPercentage = _totalContribution.div(totalCurrentInvestments).mul(100);
-		uint256 _tokensDue = totalTokensReceived.mul(_contributionPercentage);
+		uint256 _contributionPercentage = _totalContribution.mul(100).div(totalCurrentInvestments);
+		uint256 _tokensDue = totalTokensReceived.mul(_contributionPercentage).div(100);
 
 		icoTokenAddress.transfer(msg.sender, _tokensDue);
 
@@ -171,10 +176,9 @@ contract GroupPurchaseIco is Ownable, Pausable {
 	 * @dev Integration with Token Sale contract - get a refund of all funds submitted
 	 */
 	function claimRefundFromIco() public {
-		//Change state to Status.open so that investors can withdraw
+		contractStatus = Status.Refunding;
 		icoSaleAddress.claimRefund();
 		//require(this.balance == totalCurrentInvestments);
-		contractStatus = Status.Refunding;
 		ClaimedRefundFromIco(address(this), now);
 	}
 
