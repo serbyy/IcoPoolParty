@@ -1,25 +1,28 @@
 pragma solidity ^0.4.18;
 
-import "./IcoPoolParty.sol";
+import "./IcoPoolPartyParent.sol";
 import "./interfaces/IForegroundTokenSale.sol";
 
-contract ForegroundPoolParty is IcoPoolParty {
+contract ForegroundPoolParty is IcoPoolPartyParent {
+
+	string public poolPartyName = "Foreground Pool Party";
 
 	IForegroundTokenSale public icoSaleAddress;
-	IErc20Token public icoTokenAddress;
 
-	function TokenMarketPoolParty(
+	function ForegroundPoolParty (
 		uint256 _waterMark,
 		uint256 _groupTokenPrice,
-		IForegroundTokenSale _icoSaleAddress,
-		IErc20Token _icoTokenAddress
+        address _icoSaleAddress,
+		address _icoTokenAddress
 	)
-	IcoPoolParty(
-		_waterMark,
-		_groupTokenPrice,
-		_icoTokenAddress)
+        public
+        IcoPoolPartyParent(
+            _waterMark,
+            _groupTokenPrice,
+            _icoTokenAddress
+        )
 	{
-		icoSaleAddress = _icoSaleAddress;
+		icoSaleAddress = IForegroundTokenSale(_icoSaleAddress);
 	}
 
 	/**
@@ -54,7 +57,7 @@ contract ForegroundPoolParty is IcoPoolParty {
 	}
 
 
-	/**
+	/*
      * INTEGRATION POINT WITH SALE CONTRACT
      * @notice Once token are released by ICO, claim tokens. Tokens are released to this contract - called once by anyone
      * @dev Integration with Token Sale contract - claim tokens
@@ -68,11 +71,11 @@ contract ForegroundPoolParty is IcoPoolParty {
 		ClaimedTokensFromIco(address(this), totalTokensReceived, now);
 	}
 
-	/**
+	/*
 	 * INTEGRATION POINT WITH SALE CONTRACT
 	 * @notice In the case that the token sale is unsuccessful, withdraw funds from Sale Contract back to this contract in order for investors to claim their refund
 	 * @dev Integration with Token Sale contract - get a refund of all funds submitted
-	 */
+     */
 	function claimRefundFromIco() public {
 		contractStatus = Status.Refunding;
 		icoSaleAddress.claimRefund();

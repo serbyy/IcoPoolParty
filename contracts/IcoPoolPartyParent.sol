@@ -10,7 +10,7 @@ import "./interfaces/IErc20Token.sol";
  * @author Shane van Coller 1/24/2018
  * @title Group Purchase for ICO contract
  */
-contract IcoPoolParty is Ownable, Pausable {
+contract IcoPoolPartyParent is Ownable, Pausable {
 	using SafeMath for uint256;
 
 	uint256 public waterMark;
@@ -18,8 +18,6 @@ contract IcoPoolParty is Ownable, Pausable {
 	uint256 public groupTokenPrice;
 	uint256 public totalTokensReceived;
 
-	/* Token Sale specific variables */
-	IForegroundTokenSale public icoSaleAddress;
 	IErc20Token public icoTokenAddress;
 
 	Status public contractStatus;
@@ -57,16 +55,16 @@ contract IcoPoolParty is Ownable, Pausable {
 	 * @param _groupTokenPrice Discounted price per token
 	 * @param _icoTokenAddress Address of the token being sold -> used to transfer tokens to investors once received
 	 */
-	function IcoPoolParty(
+	function IcoPoolPartyParent(
 		uint256 _waterMark,
 		uint256 _groupTokenPrice,
-		IErc20Token _icoTokenAddress
+		address _icoTokenAddress
 	)
 		public
 	{
 		waterMark = _waterMark;
 		groupTokenPrice = _groupTokenPrice;
-		icoTokenAddress = _icoTokenAddress;
+		icoTokenAddress = IErc20Token(_icoTokenAddress);
 	}
 
 	/**

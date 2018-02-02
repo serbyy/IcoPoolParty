@@ -1,44 +1,54 @@
 pragma solidity ^0.4.18;
 
-import "./IcoPoolParty.sol";
+import "./ForegroundPoolParty.sol";
+import "./TokenMarketPoolParty.sol";
 
 contract IcoPoolPartyFactory is Ownable {
 
-	address[] public partyList;
 	uint256 public feePercentage;
 	uint256 public withdrawalFee;
 
-	enum PoolPartyType {None, Foreground, TokenMarket, OpenZepplin}
+    address[] public partyList;
+    mapping(address => PoolParty) public poolParties;
 
-	event NewPoolParty(PoolPartyType poolPartyType, address saleAddress, address, tokenAddress, uint256 date);
+    struct PoolParty {
+        PoolPartyType partyType;
+    }
 
-	function IcoPoolPartyFactory() {
+    enum PoolPartyType {None, Foreground, TokenMarket, OpenZeppelin}
+
+	event NewPoolParty(PoolPartyType poolPartyType, address saleAddress, address tokenAddress, uint256 date);
+
+	function IcoPoolPartyFactory() public {
 		feePercentage = 5;
 		withdrawalFee = 0.0015 ether;
 	}
 
 	function createNewPoolParty(
 		PoolPartyType _partyType,
-		address _tokenSaleAddress,
-		address _tokenAddress,
-		uint256 _waterMark,
-		uint256 _groupTokenPrice
+        uint256 _waterMark,
+        uint256 _groupTokenPrice,
+        address _tokenSaleAddress,
+		address _tokenAddress
 	)
 		public
 	{
-		IcoPoolParty icoPoolParty;
-
+        address _createdAddress;
 		if (_partyType == PoolPartyType.Foreground) {
-			icoPoolParty = new ForegroundPoolParty(_waterMark, _groupTokenPrice, _tokenSaleAddress, _tokenAddress);
+			ForegroundPoolParty foregroundPoolParty = new ForegroundPoolParty(_waterMark, _groupTokenPrice, _tokenSaleAddress, _tokenAddress);
+            foregroundPoolParty.transferOwnership(msg.sender);
+            _createdAddress = address(foregroundPoolParty);
+            poolParties[_createdAddress].partyType = PoolPartyType.Foreground;
 		} else if (_partyType == PoolPartyType.TokenMarket) {
-			icoPoolParty = new TokenMarketPoolParty(_waterMark, _groupTokenPrice, _tokenSaleAddress, _tokenAddress);
-		} else if (_partyType == PoolPartyType.OpenZepplin) {
-			icoPoolParty = new OpenZepplinPoolParty(_waterMark, _groupTokenPrice, _tokenSaleAddress, _tokenAddress);
-		}
+            TokenMarketPoolParty tokenMarketPoolParty = new TokenMarketPoolParty(_waterMark, _groupTokenPrice, _tokenSaleAddress, _tokenAddress);
+            tokenMarketPoolParty.transferOwnership(msg.sender);
+            _createdAddress = address(tokenMarketPoolParty);
+            poolParties[_createdAddress].partyType = PoolPartyType.TokenMarket;
+        }
 
-		partyList.push(address(icoPoolParty));
-		NewPoolParty(_partyType, _tokenSaleAddress, _tokenAddress, now);
-	}
+        partyList.push(_createdAddress);
+        NewPoolParty(_partyType, _tokenSaleAddress, _tokenAddress, now);
+    }
 
 	function setFeePercentage(uint256 _feePercentage) public onlyOwner {
 		feePercentage = _feePercentage;
