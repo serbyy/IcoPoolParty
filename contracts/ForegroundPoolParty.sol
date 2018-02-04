@@ -1,9 +1,9 @@
 pragma solidity ^0.4.18;
 
-import "./IcoPoolPartyParent.sol";
+import "./IcoPoolPartyBase.sol";
 import "./interfaces/IForegroundTokenSale.sol";
 
-contract ForegroundPoolParty is IcoPoolPartyParent {
+contract ForegroundPoolParty is IcoPoolPartyBase {
 
 	string public poolPartyName = "Foreground Pool Party";
 
@@ -16,7 +16,7 @@ contract ForegroundPoolParty is IcoPoolPartyParent {
 		address _icoTokenAddress
 	)
         public
-        IcoPoolPartyParent(
+        IcoPoolPartyBase(
             _waterMark,
             _groupTokenPrice,
             _icoTokenAddress
@@ -31,15 +31,7 @@ contract ForegroundPoolParty is IcoPoolPartyParent {
      *      address.call is used to get around the fact that the minimum gas amount is sent with a .send or .transfer - this call needs more than the minimum
      */
 	function releaseFundsToSale() public payable {
-		require(contractStatus == Status.Approved);
-		require(totalCurrentInvestments >= waterMark);
-		require(msg.value > 0);
-
-		uint256 _expectedTokenBalance = totalCurrentInvestments.div(groupTokenPrice);
-		uint256 _feeAmount = totalCurrentInvestments.mul(FEE_PERCENTAGE).div(100);
-
-		//TODO: Check for re-entrancy
-		uint256 _amountToRelease = totalCurrentInvestments.add(msg.value.sub(_feeAmount));
+		var (_amountToRelease, _expectedTokenBalance, _feeAmount) = calculatePreReleaseValues();
 
 		//Release funds to sale contract
 		assert(address(icoSaleAddress).call.gas(300000).value(_amountToRelease)());

@@ -10,7 +10,7 @@ import "./interfaces/IErc20Token.sol";
  * @author Shane van Coller 1/24/2018
  * @title Group Purchase for ICO contract
  */
-contract IcoPoolPartyParent is Ownable, Pausable {
+contract IcoPoolPartyBase is Ownable, Pausable {
 	using SafeMath for uint256;
 
 	uint256 public waterMark;
@@ -55,7 +55,7 @@ contract IcoPoolPartyParent is Ownable, Pausable {
 	 * @param _groupTokenPrice Discounted price per token
 	 * @param _icoTokenAddress Address of the token being sold -> used to transfer tokens to investors once received
 	 */
-	function IcoPoolPartyParent(
+	function IcoPoolPartyBase(
 		uint256 _waterMark,
 		uint256 _groupTokenPrice,
 		address _icoTokenAddress
@@ -177,6 +177,24 @@ contract IcoPoolPartyParent is Ownable, Pausable {
 		_ejectedInvestor.transfer(_amountToRefund.sub(_fee));
 
 		InvestorEjected(_ejectedInvestor, _fee, _amountToRefund.sub(_fee), now);
+	}
+
+	/**
+	 * @notice Internal function....
+	 * @return Amount to release to the ICO
+	 */
+	function calculatePreReleaseValues() internal view returns(uint256, uint256, uint256) {
+		require(contractStatus == Status.Approved);
+		require(totalCurrentInvestments >= waterMark);
+		require(msg.value > 0);
+
+		uint256 _expectedTokenBalance = totalCurrentInvestments.div(groupTokenPrice);
+		uint256 _feeAmount = totalCurrentInvestments.mul(FEE_PERCENTAGE).div(100);
+
+		//TODO: Check for re-entrancy
+		uint256 _amountToRelease = totalCurrentInvestments.add(msg.value.sub(_feeAmount));
+
+		return (_amountToRelease, _expectedTokenBalance, _feeAmount);
 	}
 
 	/**
