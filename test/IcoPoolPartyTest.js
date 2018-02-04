@@ -4,11 +4,13 @@ let foregroundPoolParty = artifacts.require('./ForegroundPoolParty');
 let tokenMarketPoolParty = artifacts.require('./TokenMarketPoolParty');
 let icoPoolPartyFactory = artifacts.require('./IcoPoolPartyFactory');
 let foregroundTokenSale = artifacts.require('./ForegroundTokenSale');
+let poolPartyV2 = artifacts.require('./PoolPartyV2');
 let dealToken = artifacts.require('./DealToken');
 
 let icoPoolPartyFactoryContract;
 let foregroundPoolPartyContract;
 let tokenMarketPoolPartyContract;
+let poolPartyV2Contract;
 let tokenSaleContract;
 let dealTokenContract;
 
@@ -17,7 +19,7 @@ let PoolPartyType = {None: 0, Foreground: 1, TokenMarket: 2, OpenZeppelin: 3};
 
 contract('Group Purchase ICO', function (accounts) {
 
-    describe('Contribute to Foreground pool', function () {
+    describe.skip('Contribute to Foreground pool', function () {
         this.slow(5000);
 
         before(async () => {
@@ -186,34 +188,39 @@ contract('Group Purchase ICO', function (accounts) {
         });
     });
 
-    describe.skip('Contribute to Token Market pool', function () {
+    describe('Contribute to new pool', function () {
         this.slow(5000);
 
         before(async () => {
-            icoPoolPartyFactoryContract = await icoPoolPartyFactory.new();
+            icoPoolPartyFactoryContract = await icoPoolPartyFactory.new(accounts[0], accounts[0]);
             smartLog("Pool Party Factory Address [" + await icoPoolPartyFactoryContract.address + "]");
 
-            let waterMark = web3.toWei("10", "ether");
-            let groupTokenPrice = web3.toWei("0.03", "ether");
-            let icoSaleAddress = "0x2755f888047Db8E3d169C6A427470C44b19a7270";
-            let icoTokenAddress = "0x2755f888047Db8E3d169C6A427470C44b19a7270";
-            await icoPoolPartyFactoryContract.createNewPoolParty(PoolPartyType.TokenMarket, waterMark, groupTokenPrice, icoSaleAddress, icoTokenAddress);
+            await icoPoolPartyFactoryContract.createNewPoolParty("https://www.foreground.io");
+            let poolAddress = await icoPoolPartyFactoryContract.partyList(0);
+            poolPartyV2Contract = poolPartyV2.at(poolAddress);
 
-            let tmAddress = await icoPoolPartyFactoryContract.partyList(0);
-            assert.equal(await icoPoolPartyFactoryContract.poolParties(tmAddress), PoolPartyType.TokenMarket, "Incorrect party type - should be 'TokenMarket'");
-            tokenMarketPoolPartyContract = tokenMarketPoolParty.at(tmAddress);
-
-            smartLog("Token Market Pool Party Address [" + tokenMarketPoolPartyContract.address  + "]");
+            smartLog("New Pool Party Address [" + poolPartyV2Contract.address + "]");
+            smartLog("Service Account [" + await icoPoolPartyFactoryContract.serviceAccount() + "]");
         });
 
-        it("should add funds to pool", async () => {
-            await tokenMarketPoolPartyContract.addFundsToPool({from: accounts[0], value: web3.toWei("6", "ether")});
-            let investmentAmount = await tokenMarketPoolPartyContract.investments(accounts[0]);
-            let totalInvested = await tokenMarketPoolPartyContract.totalCurrentInvestments();
+        it("should add funds to pool and other sandbox tests", async () => {
+            await poolPartyV2Contract.addFundsToPool({from: accounts[0], value: web3.toWei("6", "ether")});
+            let investmentAmount = await poolPartyV2Contract.investments(accounts[0]);
+            let totalInvested = await poolPartyV2Contract.totalPoolInvestments();
             smartLog("Investment amount for user [" + investmentAmount + "]");
             smartLog("Total investment amount [" + totalInvested + "]");
             assert.equal(investmentAmount, web3.toWei("6", "ether"), "Incorrect balance");
             assert.equal(totalInvested, web3.toWei("6", "ether"), "Incorrect total");
+
+            smartLog("Address of Foreground pool [" + await icoPoolPartyFactoryContract.contractAddressByName("https://www.foreground.io") + "]");
+
+            var poolDetails = await poolPartyV2Contract.getPoolDetails();
+            smartLog("Foreground pool details [" + poolDetails + "]");
+            smartLog("Foreground pool URL [" + web3.toAscii(poolDetails[0]) + "]");
+        });
+
+        it("should set sale detail", async () => {
+            await poolPartyV2Contract.setSaleDetails(accounts[9], accounts[9], accounts[0], "", "claimRefund()", "claimToken()", {from: accounts[0]});
         });
     });
 
