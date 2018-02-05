@@ -13,9 +13,9 @@ contract IcoPoolPartyFactory is Ownable {
     address public serviceAccountAddress;
 
     address[] public partyList;
-    mapping(bytes32 => address) public contractAddressByName;
+    mapping(bytes32 => address) hashedPoolAddress;
 
-    event PoolPartyCreated(address indexed poolAddress, address indexed creator, bytes32 poolUrl, uint256 date);
+    event PoolPartyCreated(address indexed poolAddress, address indexed creator, string poolUrl, uint256 date);
     event FeePercentageUpdate(address indexed updater, uint256 oldValue, uint256 newValue, uint256 date);
     event WithdrawalFeeUpdate(address indexed updater, uint256 oldValue, uint256 newValue, uint256 date);
     event GroupDiscountPercentageUpdate(address indexed updater, uint256 oldValue, uint256 newValue, uint256 date);
@@ -33,22 +33,34 @@ contract IcoPoolPartyFactory is Ownable {
         groupDiscountPercent = 15;
         waterMark = 100 ether;
         poolPartyOwnerAddress = _poolPartyOwnerAddress;
-        serviceAccountAddress = _serviceAccount;
+        serviceAccountAddress = _serviceAccountAddress;
     }
 
     /**
      * @notice Creates a new pool with the ICO's official URL
      * @param _icoUrl The official URL for the ICO. Confirmation from the ICO about this pool will be posted at this URL
      */
-    function createNewPoolParty(bytes32 _icoUrl) public {
+    function createNewPoolParty(string _icoUrl) public {
         IcoPoolParty poolPartyContract = new IcoPoolParty(_icoUrl, waterMark, feePercentage, withdrawalFee, groupDiscountPercent, poolPartyOwnerAddress, serviceAccountAddress);
         poolPartyContract.transferOwnership(msg.sender);
         partyList.push(address(poolPartyContract));
-        contractAddressByName[bytes32(_icoUrl)] = address(poolPartyContract);
+        hashedPoolAddress[keccak256(_icoUrl)] = address(poolPartyContract);
 
         PoolPartyCreated(poolPartyContract, msg.sender, _icoUrl, now);
     }
 
+    /**
+     * @notice Gets the address of the contract created for a given URL
+     * @dev Name is hashed so that it can be used as the key for the mapping - hashing it allows for that name to be an arbitrary length but always stored as bytes32
+     * @param _icoUrl URL of to lookup
+     */
+    function getContractAddressByName(string _icoUrl)
+        public
+        view
+        returns(address)
+    {
+        return hashedPoolAddress[keccak256(_icoUrl)];
+    }
 
     /**
      * @dev Set the percentage fee that we take for using this service

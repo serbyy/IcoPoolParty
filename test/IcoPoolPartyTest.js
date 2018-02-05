@@ -4,13 +4,13 @@ let foregroundPoolParty = artifacts.require('./ForegroundPoolParty');
 let tokenMarketPoolParty = artifacts.require('./TokenMarketPoolParty');
 let icoPoolPartyFactory = artifacts.require('./IcoPoolPartyFactory');
 let foregroundTokenSale = artifacts.require('./ForegroundTokenSale');
-let poolPartyV2 = artifacts.require('./PoolPartyV2');
+let icoPoolParty = artifacts.require('./IcoPoolParty');
 let dealToken = artifacts.require('./DealToken');
 
 let icoPoolPartyFactoryContract;
 let foregroundPoolPartyContract;
 let tokenMarketPoolPartyContract;
-let poolPartyV2Contract;
+let icoPoolPartyContract;
 let tokenSaleContract;
 let dealTokenContract;
 
@@ -197,30 +197,30 @@ contract('Group Purchase ICO', function (accounts) {
 
             await icoPoolPartyFactoryContract.createNewPoolParty("https://www.foreground.io");
             let poolAddress = await icoPoolPartyFactoryContract.partyList(0);
-            poolPartyV2Contract = poolPartyV2.at(poolAddress);
+            icoPoolPartyContract = icoPoolParty.at(poolAddress);
 
-            smartLog("New Pool Party Address [" + poolPartyV2Contract.address + "]");
-            smartLog("Service Account [" + await icoPoolPartyFactoryContract.serviceAccount() + "]");
+            smartLog("New Pool Party Address [" + icoPoolPartyContract.address + "]", true);
+            smartLog("Service Account [" + await icoPoolPartyFactoryContract.serviceAccountAddress() + "]");
         });
 
         it("should add funds to pool and other sandbox tests", async () => {
-            await poolPartyV2Contract.addFundsToPool({from: accounts[0], value: web3.toWei("6", "ether")});
-            let investmentAmount = await poolPartyV2Contract.investments(accounts[0]);
-            let totalInvested = await poolPartyV2Contract.totalPoolInvestments();
+            await icoPoolPartyContract.addFundsToPool({from: accounts[0], value: web3.toWei("6", "ether")});
+            let investmentAmount = await icoPoolPartyContract.investments(accounts[0]);
+            let totalInvested = await icoPoolPartyContract.totalPoolInvestments();
             smartLog("Investment amount for user [" + investmentAmount + "]");
             smartLog("Total investment amount [" + totalInvested + "]");
             assert.equal(investmentAmount, web3.toWei("6", "ether"), "Incorrect balance");
             assert.equal(totalInvested, web3.toWei("6", "ether"), "Incorrect total");
 
-            smartLog("Address of Foreground pool [" + await icoPoolPartyFactoryContract.contractAddressByName("https://www.foreground.io") + "]");
+            smartLog("Address of Foreground pool [" + await icoPoolPartyFactoryContract.getContractAddressByName("https://www.foreground.io") + "]", true);
 
-            var poolDetails = await poolPartyV2Contract.getPoolDetails();
+            var poolDetails = await icoPoolPartyContract.getPoolDetails();
             smartLog("Foreground pool details [" + poolDetails + "]");
             smartLog("Foreground pool URL [" + web3.toAscii(poolDetails[0]) + "]");
         });
 
         it("should set sale detail", async () => {
-            await poolPartyV2Contract.setSaleDetails(accounts[9], accounts[9], accounts[0], "", "claimRefund()", "claimToken()", {from: accounts[0]});
+            await icoPoolPartyContract.setSaleDetails(accounts[9], accounts[9], accounts[0], "", "claimRefund()", "claimToken()", {from: accounts[0]});
         });
     });
 

@@ -8,7 +8,7 @@ import "./interfaces/IErc20Token.sol";
 contract IcoPoolParty is Ownable {
     using SafeMath for uint256;
 
-    bytes32 public icoUrl;
+    string public icoUrl;
     bytes32 public buyFunctionName;
     bytes32 public refundFunctionName;
     bytes32 public claimFunctionName;
@@ -64,7 +64,7 @@ contract IcoPoolParty is Ownable {
     }
 
     function IcoPoolParty(
-        bytes32 _icoUrl,
+        string _icoUrl,
         uint256 _waterMark,
         uint256 _feePercentage,
         uint256 _withdrawalFee,
@@ -248,9 +248,9 @@ contract IcoPoolParty is Ownable {
      * @param _user The user address of the account to look up
      */
     function getTotalTokensDue(address _user)
-    public
-    view
-    returns (uint256)
+        public
+        view
+        returns (uint256)
     {
         uint256 _tokensDue = 0;
         if (totalTokensReceived > 0) {
@@ -264,7 +264,7 @@ contract IcoPoolParty is Ownable {
      * @dev Contract state is moved into 'InReview' for KYC compliance check.
      */
     function updateState(Status _state)
-    public
+        public
     onlyOwner
     {
         contractStatus = _state;
@@ -276,7 +276,7 @@ contract IcoPoolParty is Ownable {
      * @param _ejectedInvestor Address of the person to eject from the pool.
      */
     function ejectInvestor(address _ejectedInvestor)
-    public
+        public
     onlyOwner
     {
         uint256 _amountToRefund = investments[_ejectedInvestor];
@@ -298,9 +298,9 @@ contract IcoPoolParty is Ownable {
      * @notice Returns all relevant pool details in 1 function
      */
     function getPoolDetails()
-    public
-    view
-    returns (bytes32,  uint256, uint256, uint256, uint256, uint256, address, address, Status)
+        public
+        view
+        returns (string,  uint256, uint256, uint256, uint256, uint256, address, address, Status)
     {
         return(icoUrl, waterMark, feePercentage, withdrawalFee, groupDiscountPercent, totalPoolInvestments, saleAddress, tokenAddress,  contractStatus);
     }
@@ -311,9 +311,9 @@ contract IcoPoolParty is Ownable {
      * @param _userInvestmentAmount The investment amount used to calculate the tokens due
      */
     function getUserTokensDueForAmount(uint256 _userInvestmentAmount)
-    private
-    view
-    returns (uint256)
+        private
+        view
+        returns (uint256)
     {
         uint256 _contributionPercentage = _userInvestmentAmount.mul(100).div(totalPoolInvestments);
         return totalTokensReceived.mul(_contributionPercentage).div(100);
