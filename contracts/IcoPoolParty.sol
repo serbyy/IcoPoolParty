@@ -9,6 +9,7 @@ contract IcoPoolParty is Ownable {
     using SafeMath for uint256;
 
     string public icoUrl;
+
     bytes32 public buyFunctionName;
     bytes32 public refundFunctionName;
     bytes32 public claimFunctionName;
@@ -19,6 +20,7 @@ contract IcoPoolParty is Ownable {
     uint256 public groupDiscountPercent;
     uint256 public totalPoolInvestments;
     uint256 public totalTokensReceived;
+    uint256 public poolParticipants;
 
     address public saleAddress;
     address public saleContractOwner;
@@ -79,6 +81,7 @@ contract IcoPoolParty is Ownable {
         feePercentage = _feePercentage;
         withdrawalFee = _withdrawalFee;
         groupDiscountPercent = _groupDiscountPercent;
+        poolParticipants = 0;
         poolPartyOwnerAddress = _poolPartyOwnerAddress;
         serviceAccount = _serviceAccount;
     }
@@ -129,6 +132,10 @@ contract IcoPoolParty is Ownable {
     {
         require(contractStatus == Status.Open);
 
+        if(investments[msg.sender] == 0) {
+            poolParticipants = poolParticipants.add(1);
+        }
+
         uint256 _amountInvested = msg.value;
         investments[msg.sender] = investments[msg.sender].add(_amountInvested);
         totalPoolInvestments = totalPoolInvestments.add(_amountInvested);
@@ -147,6 +154,7 @@ contract IcoPoolParty is Ownable {
         uint256 _amountToRefund = investments[msg.sender];
         investments[msg.sender] = 0;
         totalPoolInvestments = totalPoolInvestments.sub(_amountToRefund);
+        poolParticipants = poolParticipants.sub(1);
         msg.sender.transfer(_amountToRefund);
 
         FundsWithdrawn(msg.sender, _amountToRefund, now);
