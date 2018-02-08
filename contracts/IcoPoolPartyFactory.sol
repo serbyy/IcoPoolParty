@@ -10,7 +10,7 @@ contract IcoPoolPartyFactory is Ownable {
     uint256 public waterMark;
 
     address public poolPartyOwnerAddress;
-    address public serviceAccountAddress;
+    address serviceAccountAddress;
 
     address[] public partyList;
     mapping(bytes32 => address) hashedPoolAddress;
@@ -37,14 +37,17 @@ contract IcoPoolPartyFactory is Ownable {
     }
 
     /**
-     * @notice Creates a new pool with the ICO's official URL
-     * @param _icoUrl The official URL for the ICO. Confirmation from the ICO about this pool will be posted at this URL
+     * @notice Creates a new pool with the ICO's official URL.
+     * @param _icoUrl The official URL for the ICO. Must be unique. Confirmation from the ICO about this pool will be posted at this URL
      */
     function createNewPoolParty(string _icoUrl) public {
+        bytes32 _hashedIcoUrl = keccak256(_icoUrl);
+        require(hashedPoolAddress[_hashedIcoUrl] == 0x0);
+
         IcoPoolParty poolPartyContract = new IcoPoolParty(_icoUrl, waterMark, feePercentage, withdrawalFee, groupDiscountPercent, poolPartyOwnerAddress, serviceAccountAddress);
         poolPartyContract.transferOwnership(msg.sender);
         partyList.push(address(poolPartyContract));
-        hashedPoolAddress[keccak256(_icoUrl)] = address(poolPartyContract);
+        hashedPoolAddress[_hashedIcoUrl] = address(poolPartyContract);
 
         PoolPartyCreated(poolPartyContract, msg.sender, _icoUrl, now);
     }

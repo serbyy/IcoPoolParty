@@ -87,10 +87,11 @@ contract IcoPoolParty is Ownable {
     }
 
     /**
-     * @notice Default fallback function, reverts if called
+     * @notice Default fallback function, only the sale address is allowed to send funds directly to this contract
      */
     function () public payable {
-        revert();
+        require (msg.sender == saleContractOwner);
+        //TODO: Divide whatever is sent back by the sale contract proportionally across all participants
     }
 
     /**
@@ -110,7 +111,6 @@ contract IcoPoolParty is Ownable {
         require(_saleAddress != 0x0 && _tokenAddress != 0x0 && _saleOwnerAddress != 0x0);
         require(_refundFunction.length != 0);
         require(_claimFunction.length != 0);
-        //TODO: what do we do when any of the functions take parameters?
         saleAddress = _saleAddress;
         tokenAddress = IErc20Token(_tokenAddress);
         saleContractOwner = _saleOwnerAddress;
@@ -176,30 +176,29 @@ contract IcoPoolParty is Ownable {
         uint256 _groupContributionPercent = uint256(100).sub(groupDiscountPercent);
         //TODO: Check for re-rentrancy
         uint256 _amountToRelease = totalPoolInvestments.div(_groupContributionPercent).mul(100);
-
         uint256 _actualSubsidy = _amountToRelease.sub(totalPoolInvestments);
         uint256 _expectedSubsidyWithFee = _actualSubsidy.add(_feeAmount);
-        assert(_expectedSubsidyWithFee == msg.value);
+        require(_expectedSubsidyWithFee == msg.value);
 
         //Release funds to sale contract
-        if (buyFunctionName.length == 0) { //Call fallback function
-            assert(saleAddress.call.gas(300000).value(_amountToRelease)());
+        if (buyFunctionName == 0x0) { //Call fallback function
+            require(saleAddress.call.gas(300000).value(_amountToRelease)());
         } else { //Call function specified during creation
-            assert(saleAddress.call.gas(300000).value(_amountToRelease)(bytes4(keccak256(buyFunctionName))));
+            require(saleAddress.call.gas(300000).value(_amountToRelease)(bytes4(buyFunctionName)));
         }
 
         //If there is no claim function then assume tokens are minted at time they are bought (for example TokenMarketCrowdSale)
-        if (claimFunctionName.length == 0) {
+        if (claimFunctionName == 0x0) {
             totalTokensReceived = tokenAddress.balanceOf(address(this));
             assert(totalTokensReceived > 0);
             contractStatus = Status.ClaimTokens;
             ClaimedTokensFromIco(address(this), totalTokensReceived, now);
         }
 
-        assert(this.balance >= _feeAmount);
-
         //Transfer the fee
-        assert(poolPartyOwnerAddress.call.value(_feeAmount)());
+        require(poolPartyOwnerAddress.call.value(_feeAmount)());
+
+        //TODO: There will likely be a balance left on the contract even after the fee - expose function for participants to redeem their amount proportionate to their investment amount
 
         contractStatus = Status.ClaimTokens;
         FundReleasedToIco(totalPoolInvestments, _actualSubsidy, _feeAmount, saleAddress, now);
@@ -212,7 +211,7 @@ contract IcoPoolParty is Ownable {
      */
     function claimRefundFromIco() public {
         contractStatus = Status.Refunding;
-        assert(saleAddress.call(bytes4(keccak256(refundFunctionName))));
+        require(saleAddress.call(bytes4(refundFunctionName)));
         ClaimedRefundFromIco(address(this), now);
     }
 
@@ -223,10 +222,10 @@ contract IcoPoolParty is Ownable {
      */
     function claimTokensFromIco() public {
         require(claimFunctionName.length > 0);
-        assert(saleAddress.call(bytes4(keccak256(claimFunctionName))));
+        require(saleAddress.call(bytes4(claimFunctionName)));
         totalTokensReceived = tokenAddress.balanceOf(address(this));
         //Ensure we have received, and have ownership of the tokens
-        assert(totalTokensReceived > 0);
+        require(totalTokensReceived > 0);
 
         ClaimedTokensFromIco(address(this), totalTokensReceived, now);
     }
@@ -273,7 +272,7 @@ contract IcoPoolParty is Ownable {
      */
     function updateState(Status _state)
         public
-    onlyOwner
+        onlyOwner
     {
         contractStatus = _state;
     }
@@ -285,11 +284,12 @@ contract IcoPoolParty is Ownable {
      */
     function ejectInvestor(address _ejectedInvestor)
         public
-    onlyOwner
+        onlyOwner
     {
         uint256 _amountToRefund = investments[_ejectedInvestor];
         require(_amountToRefund > 0);
         investments[_ejectedInvestor] = 0;
+        poolParticipants = poolParticipants.sub(1);
         totalPoolInvestments = totalPoolInvestments.sub(_amountToRefund);
         uint256 _fee = 0;
         if (_amountToRefund >= withdrawalFee) {
@@ -326,5 +326,4 @@ contract IcoPoolParty is Ownable {
         uint256 _contributionPercentage = _userInvestmentAmount.mul(100).div(totalPoolInvestments);
         return totalTokensReceived.mul(_contributionPercentage).div(100);
     }
-
 }

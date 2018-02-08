@@ -1,20 +1,16 @@
 import expectThrow from './helpers/expectThrow';
 
-let foregroundPoolParty = artifacts.require('./ForegroundPoolParty');
-let tokenMarketPoolParty = artifacts.require('./TokenMarketPoolParty');
 let icoPoolPartyFactory = artifacts.require('./IcoPoolPartyFactory');
-let foregroundTokenSale = artifacts.require('./ForegroundTokenSale');
 let icoPoolParty = artifacts.require('./IcoPoolParty');
+let foregroundTokenSale = artifacts.require('./ForegroundTokenSale');
 let dealToken = artifacts.require('./DealToken');
 
 let icoPoolPartyFactoryContract;
-let foregroundPoolPartyContract;
-let tokenMarketPoolPartyContract;
 let icoPoolPartyContract;
 let tokenSaleContract;
 let dealTokenContract;
 
-let Status = {Open: 0, InReview: 1, Approved: 2, Refunding: 3, ClaimTokens: 4};
+let Status = {Open: 0, InReview: 1, Approved: 2, Refunding: 3, ClaimTokens: 4, WaterMarkReached: 5};
 let PoolPartyType = {None: 0, Foreground: 1, TokenMarket: 2, OpenZeppelin: 3};
 
 contract('Group Purchase ICO', function (accounts) {
@@ -39,7 +35,7 @@ contract('Group Purchase ICO', function (accounts) {
             assert.equal(await icoPoolPartyFactoryContract.poolParties(fgAddress), PoolPartyType.Foreground, "Incorrect party type - should be 'Foreground'");
             foregroundPoolPartyContract = foregroundPoolParty.at(fgAddress);
 
-            smartLog("Foreground Pool Party Address [" + foregroundPoolPartyContract.address  + "]");
+            smartLog("Foreground Pool Party Address [" + foregroundPoolPartyContract.address + "]");
 
             let tokenSaleStartBlockNumber = web3.eth.blockNumber + 1;
             let tokenSaleEndBlockNumber = tokenSaleStartBlockNumber + 500;
@@ -195,12 +191,36 @@ contract('Group Purchase ICO', function (accounts) {
             icoPoolPartyFactoryContract = await icoPoolPartyFactory.new(accounts[0], accounts[0]);
             smartLog("Pool Party Factory Address [" + await icoPoolPartyFactoryContract.address + "]");
 
+            await icoPoolPartyFactoryContract.setWaterMark(web3.toWei("10", "ether"), {from: accounts[0]});
+            smartLog("New watermark [" + await icoPoolPartyFactoryContract.waterMark() + "]");
+
+            tokenSaleContract = await foregroundTokenSale.new(400, 100, web3.toWei(0.05, "ether"), "0x2755f888047Db8E3d169C6A427470C44b19a7270");
+            let tokenSaleStartBlockNumber = web3.eth.blockNumber + 1;
+            let tokenSaleEndBlockNumber = tokenSaleStartBlockNumber + 500;
+            await tokenSaleContract.configureSale(tokenSaleStartBlockNumber, tokenSaleEndBlockNumber, accounts[9], 50, accounts[9], accounts[9], accounts[9], accounts[9], {from: accounts[0]});
+            dealTokenContract = dealToken.at(await tokenSaleContract.dealToken());
+        });
+
+        it("should create new Pool Party", async () => {
             await icoPoolPartyFactoryContract.createNewPoolParty("https://www.foreground.io");
             let poolAddress = await icoPoolPartyFactoryContract.partyList(0);
             icoPoolPartyContract = icoPoolParty.at(poolAddress);
+            smartLog("Foreground Pool Party Address [" + icoPoolPartyContract.address + "]");
 
-            smartLog("New Pool Party Address [" + icoPoolPartyContract.address + "]", true);
-            smartLog("Service Account [" + await icoPoolPartyFactoryContract.serviceAccountAddress() + "]");
+            /* Try create another pool with a name that already exists */
+            await expectThrow(icoPoolPartyFactoryContract.createNewPoolParty("https://www.foreground.io"));
+
+            await icoPoolPartyFactoryContract.createNewPoolParty("http://themktplace.io");
+            let poolAddress2 = await icoPoolPartyFactoryContract.partyList(1);
+            var icoPoolPartyContract2 = icoPoolParty.at(poolAddress2);
+
+            smartLog("MKT.place Party Address [" + icoPoolPartyContract2.address + "]");
+        });
+
+        it("should be sandbox", async () => {
+            smartLog("Address of Foreground pool [" + await icoPoolPartyFactoryContract.getContractAddressByName("https://www.foreground.io") + "]");
+            var poolDetails = await icoPoolPartyContract.getPoolDetails();
+            smartLog("Foreground pool details [" + poolDetails + "]");
         });
 
         it("should add funds to pool and other sandbox tests", async () => {
@@ -211,21 +231,101 @@ contract('Group Purchase ICO', function (accounts) {
             smartLog("Total investment amount [" + totalInvested + "]");
             assert.equal(investmentAmount, web3.toWei("6", "ether"), "Incorrect balance");
             assert.equal(totalInvested, web3.toWei("6", "ether"), "Incorrect total");
+        });
 
-            smartLog("Address of Foreground pool [" + await icoPoolPartyFactoryContract.getContractAddressByName("https://www.foreground.io") + "]", true);
+        it("should withdraw funds from pool", async () => {
+            await icoPoolPartyContract.withdrawFundsFromPool({from: accounts[0]});
+            let investmentAmount = await icoPoolPartyContract.investments(accounts[0]);
+            smartLog("Investment amount for user [" + investmentAmount + "]");
+            assert.equal(investmentAmount, 0, "Incorrect balance");
 
-            var poolDetails = await icoPoolPartyContract.getPoolDetails();
-            smartLog("Foreground pool details [" + poolDetails + "]");
-            smartLog("Foreground pool URL [" + web3.toAscii(poolDetails[0]) + "]");
+            let totalInvested = await icoPoolPartyContract.totalPoolInvestments();
+            smartLog("Total pool investment amount [" + totalInvested + "]");
+            assert.equal(totalInvested, web3.toWei("0", "ether"), "Incorrect total");
+        });
+
+        it("Should buy more", async () => {
+            await icoPoolPartyContract.addFundsToPool({from: accounts[0], value: web3.toWei("6", "ether")});
+            let investmentAmount = await icoPoolPartyContract.investments(accounts[0]);
+            let totalInvested = await icoPoolPartyContract.totalPoolInvestments();
+            smartLog("Investment amount for user [" + investmentAmount + "]");
+            smartLog("Total investment amount [" + totalInvested + "]");
+            assert.equal(investmentAmount, web3.toWei("6", "ether"), "Incorrect balance");
+            assert.equal(totalInvested, web3.toWei("6", "ether"), "Incorrect total");
+
+            await icoPoolPartyContract.addFundsToPool({from: accounts[1], value: web3.toWei("5", "ether")});
+            let investmentAmount2 = await icoPoolPartyContract.investments(accounts[1]);
+            totalInvested = await icoPoolPartyContract.totalPoolInvestments();
+            smartLog("Investment amount for user [" + investmentAmount2 + "]");
+            smartLog("Total investment amount [" + totalInvested + "]");
+            assert.equal(investmentAmount2, web3.toWei("5", "ether"), "Incorrect balance");
+            assert.equal(totalInvested, web3.toWei("11", "ether"), "Incorrect total");
+        });
+
+        it("Should kick user", async () => {
+            await icoPoolPartyContract.ejectInvestor(accounts[0], {from: accounts[0]});
+            smartLog("Account 0 eth after being ejected [" + web3.fromWei(await icoPoolPartyContract.investments(accounts[0])) + "]");
+            assert.equal(await icoPoolPartyContract.investments(accounts[0]), 0, "User account should be 0");
+            smartLog("Total investment amount [" + web3.fromWei(await icoPoolPartyContract.totalPoolInvestments()) + "]");
+            assert.equal(await icoPoolPartyContract.totalPoolInvestments(), web3.toWei("5", "ether"), "Total investments should be 5 eth");
+
+            //Add funds back to continue with tests
+            await icoPoolPartyContract.addFundsToPool({from: accounts[0], value: web3.toWei("6", "ether")});
         });
 
         it("should set sale detail", async () => {
-            await icoPoolPartyContract.setSaleDetails(accounts[9], accounts[9], accounts[0], "", "claimRefund()", "claimToken()", {from: accounts[0]});
+            var dealTokenAddress = await tokenSaleContract.dealToken();
+            var tokenSaleAddress= tokenSaleContract.address;
+            await icoPoolPartyContract.setSaleDetails(
+                tokenSaleAddress,
+                dealTokenAddress,
+                accounts[9],
+                "",
+                web3.sha3("claimRefund()"),
+                web3.sha3("claimToken()"),
+                {from: accounts[0]}
+            );
+
+            var poolDetails = await icoPoolPartyContract.getPoolDetails();
+            smartLog("Foreground pool details [" + poolDetails + "]", true);
+        });
+
+        it("Should manually purchase token", async () => {
+            web3.eth.sendTransaction({
+                from: accounts[2],
+                to: tokenSaleContract.address,
+                value: web3.toWei("1.7", "ether"),
+                gas: 300000
+            });
+            smartLog("Sale Contract Balance after manual purchase [" + web3.fromWei(web3.eth.getBalance(tokenSaleContract.address)) + "]");
+        });
+
+        it("Should release funds to ICO", async () => {
+            smartLog("Sale Contract Balance BEFORE [" + web3.fromWei(web3.eth.getBalance(tokenSaleContract.address)) + "]");
+            smartLog("Pool Contract Balance BEFORE [" + web3.fromWei(web3.eth.getBalance(icoPoolPartyContract.address)) + "]");
+
+            await tokenSaleContract.updateLatestSaleState({from: accounts[6]});
+            smartLog("Sale State is [" + await tokenSaleContract.state() + "]");
+            await icoPoolPartyContract.updateState(Status.Approved, {from: accounts[0]});
+            smartLog("Pool State is [" + await icoPoolPartyContract.contractStatus() + "]");
+
+            //11 eth * 5/100 = 0.55 eth fee
+            //await expectThrow(foregroundPoolPartyContract.releaseFundsToSale({from: accounts[4], value: web3.toWei("7.85", "ether"), gas: 300000 }));
+            await icoPoolPartyContract.releaseFundsToSale({
+                from: accounts[9],
+                value: web3.toWei("2.4911764705882352", "ether"),
+                gas: 300000
+            });
+
+            smartLog("Sale Contract Balance AFTER [" + web3.fromWei(web3.eth.getBalance(tokenSaleContract.address)) + "]");
+            smartLog("Pool Contract Balance AFTER [" + web3.fromWei(web3.eth.getBalance(icoPoolPartyContract.address)) + "]");
+            smartLog("Token Balance [" + await tokenSaleContract.purchases(icoPoolPartyContract.address) + "]");
         });
     });
 
     /***********************************************************/
     /*                    HELPER FUNCTIONS                     */
+
     /***********************************************************/
 
     async function fastForwardBlocks(_numBlocks) {
@@ -240,5 +340,9 @@ contract('Group Purchase ICO', function (accounts) {
         let verbose = false;
         if (verbose || override)
             console.log(message);
+    }
+
+    function calculateSubsidy() {
+        return 0;
     }
 });
