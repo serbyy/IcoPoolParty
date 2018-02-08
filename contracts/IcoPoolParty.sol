@@ -90,7 +90,7 @@ contract IcoPoolParty is Ownable {
      * @notice Default fallback function, only the sale address is allowed to send funds directly to this contract
      */
     function () public payable {
-        require (msg.sender == saleContractOwner);
+        require (msg.sender == saleAddress);
         //TODO: Divide whatever is sent back by the sale contract proportionally across all participants
     }
 
