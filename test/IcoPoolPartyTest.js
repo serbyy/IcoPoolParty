@@ -76,13 +76,13 @@ contract('Pool Party ICO', function (accounts) {
         });
 
         it("Should buy more", async () => {
-            await icoPoolPartyContract.addFundsToPool({from: accounts[0], value: web3.toWei("6", "ether")});
+            await icoPoolPartyContract.addFundsToPool({from: accounts[0], value: web3.toWei("6.03123123", "ether")});
             let investmentAmount = (await icoPoolPartyContract.investors(accounts[0]))[0];
             let totalInvested = await icoPoolPartyContract.totalPoolInvestments();
             smartLog("Investment amount for user [" + investmentAmount + "]");
             smartLog("Total investment amount [" + totalInvested + "]");
-            assert.equal(investmentAmount, web3.toWei("6", "ether"), "Incorrect balance");
-            assert.equal(totalInvested, web3.toWei("6", "ether"), "Incorrect total");
+            assert.equal(investmentAmount, web3.toWei("6.03123123", "ether"), "Incorrect balance");
+            //assert.equal(totalInvested, web3.toWei("6", "ether"), "Incorrect total");
 
             await icoPoolPartyContract.addFundsToPool({from: accounts[1], value: web3.toWei("5", "ether")});
             let investmentAmount2 = (await icoPoolPartyContract.investors(accounts[1]))[0];
@@ -90,7 +90,7 @@ contract('Pool Party ICO', function (accounts) {
             smartLog("Investment amount for user [" + investmentAmount2 + "]");
             smartLog("Total investment amount [" + totalInvested + "]");
             assert.equal(investmentAmount2, web3.toWei("5", "ether"), "Incorrect balance");
-            assert.equal(totalInvested, web3.toWei("11", "ether"), "Incorrect total");
+            assert.equal(totalInvested, web3.toWei("11.03123123", "ether"), "Incorrect total");
         });
 
         it.skip("should configure pool using actual oraclize call", async () => {
@@ -123,13 +123,13 @@ contract('Pool Party ICO', function (accounts) {
 
         it("Should kick user", async () => {
             //Expect throw because of wrong state
-            await expectThrow(icoPoolPartyContract.kickUser(accounts[2], {from: accounts[0]}));
+            await expectThrow(icoPoolPartyContract.kickUser(accounts[2], {from: accounts[7]}));
             await sleep(3000);
-            await icoPoolPartyContract.kickUser(accounts[2], {from: accounts[0]});
+            await icoPoolPartyContract.kickUser(accounts[2], {from: accounts[7]});
             smartLog("Account 2 eth after being kicked [" + web3.fromWei((await icoPoolPartyContract.investors(accounts[2]))[0]) + "]");
             assert.equal((await icoPoolPartyContract.investors(accounts[2]))[0], 0, "User account should be 0");
             smartLog("Total investment amount [" + web3.fromWei(await icoPoolPartyContract.totalPoolInvestments()) + "]");
-            assert.equal(await icoPoolPartyContract.totalPoolInvestments(), web3.toWei("11", "ether"), "Total investments should be 11 eth");
+            assert.equal(await icoPoolPartyContract.totalPoolInvestments(), web3.toWei("11.03123123", "ether"), "Total investments should be 11 eth");
         });
 
         it("Should manually purchase token", async () => {
@@ -143,24 +143,24 @@ contract('Pool Party ICO', function (accounts) {
         });
 
         it("Should release funds to ICO", async () => {
-            smartLog("Sale Contract Balance BEFORE [" + web3.fromWei(web3.eth.getBalance(tokenSaleContract.address)) + "]", true);
-            smartLog("Pool Contract Balance BEFORE [" + web3.fromWei(web3.eth.getBalance(icoPoolPartyContract.address)) + "]", true);
+            smartLog("Sale Contract Balance BEFORE [" + web3.fromWei(web3.eth.getBalance(tokenSaleContract.address)) + "]");
+            smartLog("Pool Contract Balance BEFORE [" + web3.fromWei(web3.eth.getBalance(icoPoolPartyContract.address)) + "]");
 
             await tokenSaleContract.updateLatestSaleState({from: accounts[6]});
             smartLog("Sale State is [" + await tokenSaleContract.state() + "]");
 
             const subsidy = await calculateSubsidy();
-            smartLog("Subsidy is [" + web3.fromWei(subsidy) + "]", true);
+            smartLog("Subsidy is [" + web3.fromWei(subsidy) + "]");
 
             const feePercent = await icoPoolPartyContract.feePercentage();
             const total = await icoPoolPartyContract.totalPoolInvestments();
             const fee = total * feePercent / 100;
-            smartLog("Fee [" + web3.fromWei(fee) + "]", true);
+            smartLog("Fee [" + web3.fromWei(fee) + "]");
 
-            //Send too much as the subsidy - should fail
+            //Send too little as the subsidy - should fail
             await expectThrow(icoPoolPartyContract.releaseFundsToSale({
                 from: accounts[7],
-                value: subsidy + fee + 1*10**18,
+                value: subsidy - 1*10**16,
                 gas: 300000
             }));
 
@@ -170,9 +170,9 @@ contract('Pool Party ICO', function (accounts) {
                 gas: 300000
             });
 
-            smartLog("Sale Contract Balance AFTER [" + web3.fromWei(web3.eth.getBalance(tokenSaleContract.address)) + "]", true);
-            smartLog("Pool Contract Balance AFTER [" + web3.fromWei(web3.eth.getBalance(icoPoolPartyContract.address)) + "]", true);
-            smartLog("Token Balance [" + await tokenSaleContract.purchases(icoPoolPartyContract.address) + "]", true);
+            smartLog("Sale Contract Balance AFTER [" + web3.fromWei(web3.eth.getBalance(tokenSaleContract.address)) + "]");
+            smartLog("Pool Contract Balance AFTER [" + web3.fromWei(web3.eth.getBalance(icoPoolPartyContract.address)) + "]");
+            smartLog("Token Balance [" + await tokenSaleContract.purchases(icoPoolPartyContract.address) + "]");
         });
 
         it("Should get 0 tokens due balance - tokens haven't been claimed yet", async () => {
@@ -213,21 +213,46 @@ contract('Pool Party ICO', function (accounts) {
         });
 
         it("Should claim tokens", async () => {
-            smartLog("Total tokens received from sale [" + await icoPoolPartyContract.totalTokensReceived() + "]", true);
-            smartLog("Account 0 eth investment [" + web3.fromWei((await icoPoolPartyContract.investors(accounts[0]))[0]) + "]", true);
+            smartLog("Total tokens received from sale [" + await icoPoolPartyContract.totalTokensReceived() + "]");
+            smartLog("Account 0 eth investment [" + web3.fromWei((await icoPoolPartyContract.investors(accounts[0]))[0]) + "]");
 
             await icoPoolPartyContract.claimTokens({from: accounts[0]});
-            smartLog("Account 0 token balance [" + await dealTokenContract.balanceOf(accounts[0]) + "]", true);
+            smartLog("Account 0 token balance [" + await dealTokenContract.balanceOf(accounts[0]) + "]");
             assert.isAbove(await dealTokenContract.balanceOf(accounts[0]), 0, "Token balance must be greater than 0");
 
             await icoPoolPartyContract.claimTokens({from: accounts[1]});
-            smartLog("Account 1 token balance [" + await dealTokenContract.balanceOf(accounts[1]) + "]", true);
+            smartLog("Account 1 token balance [" + await dealTokenContract.balanceOf(accounts[1]) + "]");
             assert.isAbove(await dealTokenContract.balanceOf(accounts[1]), 0, "Token balance must be greater than 0");
 
-            smartLog("Pool Party token balance after everyone claims [" + await dealTokenContract.balanceOf(icoPoolPartyContract.address) + "]", true);
+            smartLog("Pool Party token balance after everyone claims [" + await dealTokenContract.balanceOf(icoPoolPartyContract.address) + "]");
 
-            smartLog("Account 0 has [" + await icoPoolPartyContract.getTokensDue(accounts[0]) + "] tokens due", true);
-            smartLog("Account 1 has [" + await icoPoolPartyContract.getTokensDue(accounts[1]) + "] tokens due", true);
+            smartLog("Account 0 has [" + await icoPoolPartyContract.getTokensDue(accounts[0]) + "] tokens due after claim");
+            smartLog("Account 1 has [" + await icoPoolPartyContract.getTokensDue(accounts[1]) + "] tokens due after claim");
+
+            smartLog("Account 0 Contribution percentage [" + (await icoPoolPartyContract.investors(accounts[0]))[2] + "]");
+            smartLog("Account 1 Contribution percentage [" + (await icoPoolPartyContract.investors(accounts[1]))[2] + "]");
+
+            smartLog("Balance remaining Snapshot [" + web3.fromWei(await icoPoolPartyContract.balanceRemainingSnapshot()) + "]");
+
+            smartLog("Account 0 amount back [" + web3.fromWei((await icoPoolPartyContract.investors(accounts[0]))[6]) + "]");
+            smartLog("Account 1 amount back [" + web3.fromWei((await icoPoolPartyContract.investors(accounts[1]))[6]) + "]");
+        });
+
+        it("should claim refund after successful sale", async () => {
+            smartLog("Account 0 Contribution percentage [" + web3.fromWei((await icoPoolPartyContract.investors(accounts[0]))[2]) + "]");
+            smartLog("Account 0 Refund Amount [" + web3.fromWei((await icoPoolPartyContract.investors(accounts[0]))[6]) + "]");
+            smartLog("Account 0 Balance [" + web3.fromWei(web3.eth.getBalance(accounts[0])) + "]");
+
+            await icoPoolPartyContract.claimRefund({from: accounts[0]});
+
+            smartLog("Account 0 Contribution percentage [" + web3.fromWei((await icoPoolPartyContract.investors(accounts[0]))[2]) + "]");
+            smartLog("Account 0 Refund Amount [" + web3.fromWei((await icoPoolPartyContract.investors(accounts[0]))[6]) + "]");
+            smartLog("Account 0 Balance [" + web3.fromWei(web3.eth.getBalance(accounts[0])) + "]");
+
+            //Can't claim again
+            await expectThrow(icoPoolPartyContract.claimRefund({from: accounts[0]}));
+            //smartLog("Account 1 Contribution percentage [" + (await icoPoolPartyContract.investors(accounts[1]))[2] + "]");
+
         });
     });
 

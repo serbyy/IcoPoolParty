@@ -33,7 +33,7 @@ contract IcoPoolParty is Ownable, usingOraclize {
     bool public subsidyRequired;
 
     /* Oraclize queries */
-    string oraclizeQueryDestinationAddress;
+    /*string oraclizeQueryDestinationAddress;
     string oraclizeQueryTokenAddress;
     string oraclizeQuerySaleOwnerAddress;
     string oraclizeQueryBuyFunction;
@@ -41,7 +41,7 @@ contract IcoPoolParty is Ownable, usingOraclize {
     string oraclizeQueryClaimFunction;
     string oraclizeQueryPublicEthPricePerToken;
     string oraclizeQueryGroupEthPricePerToken;
-    string oraclizeQuerySubsidyRequired;
+    string oraclizeQuerySubsidyRequired;*/
 
     /* Pool values */
     uint256 public expectedGroupTokenPrice;
@@ -62,9 +62,10 @@ contract IcoPoolParty is Ownable, usingOraclize {
         uint256 arrayIndex;
         bool canClaimRefund;
         bool active;
+        uint256 refundAmount;
     }
 
-    enum Status {Open, WaterMarkReached, DueDiligence, InReview, Claim, Refunding}
+    enum Status {Open, WaterMarkReached, DueDiligence, InReview, Claim}
 
     event PoolCreated(string poolName, uint256 date);
     event SaleDetailsConfigured(address configurer, uint256 date);
@@ -79,7 +80,7 @@ contract IcoPoolParty is Ownable, usingOraclize {
     event ClaimedRefundFromIco(address indexed owner, address initiator, uint256 date);
 
     /**
-     * @notice Check the state of the watermark only if the current state is OPEN or WATERMARKREACHED
+     * @dev Check the state of the watermark only if the current state is OPEN or WATERMARKREACHED
      */
     modifier assessWaterMark {
         if (poolStatus == Status.Open || poolStatus == Status.WaterMarkReached) { //Only worry about the watermark before the ICO has configured the "sale"
@@ -93,7 +94,7 @@ contract IcoPoolParty is Ownable, usingOraclize {
     }
 
     /**
-     * @notice Start the 7 day timer to once the sale is configured - this gives time for investors to review where their funds will go before they are released to the configured address
+     * @dev Start the 7 day timer to once the sale is configured - this gives time for investors to review where their funds will go before they are released to the configured address
      */
     modifier timedTransition {
         if (
@@ -108,7 +109,21 @@ contract IcoPoolParty is Ownable, usingOraclize {
     }
 
     /**
-     * @dev Constructor
+     * @dev Only allow sale owner to execute function
+     */
+    modifier onlySaleOwner {
+        require (msg.sender == saleOwnerAddress);
+        _;
+    }
+
+    /**
+     * @dev Constructor initializing parameters
+     * @param _icoUrl Domain name of the sale
+     * @param _waterMark Minimum amount the pool has to reach in order for funds to be released to sale contract
+     * @param _feePercentage Fee percentage for using Pool Party
+     * @param _withdrawalFee Fee charged for kicking a participant
+     * @param _groupDiscountPercent Expected percentage discount that the pool will receive
+     * @param _poolPartyOwnerAddress Address to pay the Pool Party fee to
      */
     function IcoPoolParty(
         string _icoUrl,
@@ -128,7 +143,7 @@ contract IcoPoolParty is Ownable, usingOraclize {
         poolPartyOwnerAddress = _poolPartyOwnerAddress;
         poolParticipants = 0;
 
-        OAR = OraclizeAddrResolverI(0x6f485C8BF6fc43eA212E93BBF8ce046C7f1cb475); //TODO: ONLY USED FOR LOCAL TESTING
+        //OAR = OraclizeAddrResolverI(0x6f485C8BF6fc43eA212E93BBF8ce046C7f1cb475); //TODO: ONLY USED FOR LOCAL TESTING
         //oraclizeQueryDestinationAddress = "json(http://".toSlice().concat(icoUrl.toSlice());
         /*oraclizeQueryDestinationAddress = strConcat("json(http://", icoUrl, "/pool/example?json=true).destinationAddress");
         oraclizeQueryTokenAddress = strConcat("json(http://", icoUrl, "/pool/example?json=true).tokenAddress");
@@ -144,16 +159,14 @@ contract IcoPoolParty is Ownable, usingOraclize {
     }
 
     /**
-     * @notice Default fallback function, only the sale address is allowed to send funds directly to this contract
+     * @dev Default fallback function, only the sale address is allowed to send funds directly to this contract
      */
     function () public payable {
         require(msg.sender == destinationAddress);
-        balanceRemainingSnapshot = this.balance;
     }
 
     /**
-	 * @notice Add funds to the group purchases pool
-	 * @dev Contract status needs to be 'Open' in order to contribute additional funds
+	 * @dev Add funds to the group purchases pool. Contract status needs to be 'Open', 'WatermarkReached' or 'DueDiligence' in order to contribute additional funds
 	 */
     function addFundsToPool()
         public
@@ -166,25 +179,28 @@ contract IcoPoolParty is Ownable, usingOraclize {
             poolStatus == Status.WaterMarkReached ||
             poolStatus == Status.DueDiligence
         );
+        //TODO: What should the minimum amount be?
+        require(msg.value >= 0.1 ether);
+
         Investor storage _investor = investors[msg.sender];
 
         if(_investor.active == false) {
             poolParticipants = poolParticipants.add(1);
             investorList.push(msg.sender);
+            _investor.active = true;
+            _investor.canClaimRefund = true;
+            _investor.arrayIndex = investorList.length-1;
         }
 
         uint256 _amountInvested = msg.value;
         _investor.investmentAmount = investors[msg.sender].investmentAmount.add(_amountInvested);
-        _investor.active = true;
-        _investor.arrayIndex = investorList.length-1;
         totalPoolInvestments = totalPoolInvestments.add(_amountInvested);
 
         FundsAdded(msg.sender, msg.value, now);
     }
 
     /**
-     * @notice Can withdraw funds from the group purchase pool at any time
-     * @dev There is no penalty for user withdrawing their contribution - only pay the gas fee for the transaction
+     * @dev Can withdraw funds from the group purchase pool at any time. There is no penalty for user withdrawing their contribution - only pay the gas fee for the transaction
      */
     function leavePool()
         public
@@ -196,9 +212,7 @@ contract IcoPoolParty is Ownable, usingOraclize {
 
         uint256 _amountToRefund = _investor.investmentAmount;
         uint256 _index = _investor.arrayIndex;
-        _investor.investmentAmount = 0;
-        _investor.arrayIndex = 0;
-        _investor.active = false;
+        delete investors[msg.sender];
 
         totalPoolInvestments = totalPoolInvestments.sub(_amountToRefund);
         removeInvestorFromList(_index);
@@ -224,21 +238,27 @@ contract IcoPoolParty is Ownable, usingOraclize {
     }
 
     /**
-     * @dev Sale address will be set by backend service once address is has been made available by ICO in their official page. Address is received by making service call to URL
+     * @dev Configure sale by calling Oracle service to get config values
      */
-    function configurePool() public payable {
+    function configurePool()
+        public
+        payable
+    {
         require(poolStatus == Status.WaterMarkReached);
         //oraclize_query("URL", oraclizeQueryDestinationAddress);
-        oraclize_query("URL", "json(http://api.test.foreground.io/pool/example?json=true).destinationAddress");
+        //oraclize_query("URL", "json(http://api.test.foreground.io/pool/example?json=true).destinationAddress");
+        oraclize_query("URL", "json(http://api.test.foreground.io/pool/example?json=true)");
     }
 
     /**
      * @dev Oraclize callback
+     * @param _qId ID used to tie result back to the original query
+     * @param _result Result of the oracle query
      */
     function __callback(bytes32 _qId, string _result) public {
         require (msg.sender == oraclize_cbAddress());
 
-        if (destinationAddress == 0x0) {
+        /*if (destinationAddress == 0x0) {
             destinationAddress = parseAddr(_result);
             //oraclize_query("URL", oraclizeQueryTokenAddress);
             oraclize_query("URL", "json(http://api.test.foreground.io/pool/example?json=true).tokenAddress");
@@ -274,11 +294,11 @@ contract IcoPoolParty is Ownable, usingOraclize {
             //TODO: Convert value received from Oraclize to boolean - no built in method to do this
             //subsidyRequired = parseInt(_result);
             subsidyRequired = true;
-        }
+        }*/
     }
 
     /**
-     * @dev Complete the configuration
+     * @dev Complete the configuration and start the 7 day timer for participants to review the configured parameters
      */
     function completeConfiguration() public {
         require(msg.sender == saleOwnerAddress);
@@ -304,14 +324,14 @@ contract IcoPoolParty is Ownable, usingOraclize {
     }
 
     /**
-     * @notice Allows owners to remove investors who do not comply with KYC
-     * @dev A small fee is charged to the person being ejected from the pool (only enough to cover gas costs of the transaction) but only if the invested amount is greater than the fee.
-     * @param _userToKick Address of the person to eject from the pool.
+     * @notice
+     * @dev Allows owners to remove investors who do not comply with KYC. A small fee is charged to the person being kicked from the pool (only enough to cover gas costs of the transaction)
+     * @param _userToKick Address of the person to kick from the pool.
      */
     function kickUser(address _userToKick)
-    public
-    timedTransition
-        //TODO: Should this be limited to owner only? Or "Sale" contract owner? Currently anyone can kick a user so should restrict
+        public
+        timedTransition
+        onlySaleOwner
     {
         require(poolStatus == Status.InReview);
 
@@ -319,28 +339,23 @@ contract IcoPoolParty is Ownable, usingOraclize {
         uint256 _amountToRefund = _kickedUser.investmentAmount;
         uint256 _index = _kickedUser.arrayIndex;
         require(_amountToRefund > 0);
-        _kickedUser.investmentAmount = 0;
-        _kickedUser.arrayIndex = 0;
-        _kickedUser.active= false;
+        delete investors[_userToKick];
 
         poolParticipants = poolParticipants.sub(1);
         removeInvestorFromList(_index);
         totalPoolInvestments = totalPoolInvestments.sub(_amountToRefund);
 
-        uint256 _fee = 0;
-        if (_amountToRefund >= withdrawalFee) { //Don't take a fee if the investment amount is less than the fee
-            _fee = withdrawalFee; //0.0015eth fee to cover gas costs for being kicked - taken from investor
-            //TODO: who should get this fee? Currently goes to the caller of the function
-            msg.sender.transfer(_fee);
-        }
-
+        //fee to cover gas costs for being kicked - taken from investor
+        uint256 _fee = _amountToRefund < withdrawalFee ? _amountToRefund : withdrawalFee;
         InvestorEjected(_userToKick, _fee, _amountToRefund.sub(_fee), now);
+
+        //TODO: who should get this fee? Currently goes to the caller of the function
+        msg.sender.transfer(_fee);
         _userToKick.transfer(_amountToRefund.sub(_fee));
     }
 
     /**
-     * @notice Once the watermark has been reached and the participants approved, the pool funds can be released to the Sale contract in exchange for tokens
-     * @dev Subsidy amount is validated by checking to see if we will receive the correct number of tokens based on the configured parameters
+     * @dev Once 7 days has passed since the configuration was completed, the pool funds can be released to the Sale contract in exchange for tokens.
      *      address.call is used to get around the fact that the minimum gas amount is sent with a .send or .transfer - this call needs more than the minimum
      */
     function releaseFundsToSale()
@@ -350,7 +365,7 @@ contract IcoPoolParty is Ownable, usingOraclize {
         require(poolStatus == Status.InReview);
         require(msg.sender == saleOwnerAddress);
 
-        poolStatus = Status.Claim; //Takes care of re-entrancy
+        poolStatus = Status.Claim;
 
         //The fee must be paid by the caller of this function - which is saleOwnerAddress
         uint256 _feeAmount = totalPoolInvestments.mul(feePercentage).div(100);
@@ -361,7 +376,7 @@ contract IcoPoolParty is Ownable, usingOraclize {
             uint256 _groupContributionPercent = uint256(100).sub(actualGroupDiscountPercent);
             _amountToRelease = totalPoolInvestments.mul(100).div(_groupContributionPercent);
             _actualSubsidy = _amountToRelease.sub(totalPoolInvestments);
-            require(msg.value == _actualSubsidy.add(_feeAmount)); //Amount sent to the function should be the subsidy amount + the fee
+            require(msg.value >= _actualSubsidy.add(_feeAmount)); //Amount sent to the function should be the subsidy amount + the fee
         } else { //No subsidy, only fee has to be paid
             require(msg.value == _feeAmount);
             _amountToRelease = totalPoolInvestments;
@@ -377,6 +392,8 @@ contract IcoPoolParty is Ownable, usingOraclize {
             require(destinationAddress.call.gas(300000).value(_amountToRelease)(bytes4(buyFunctionName)));
         }
 
+        balanceRemainingSnapshot = this.balance;
+
         //If there is no claim function then assume tokens are minted at time they are bought (for example TokenMarketCrowdSale)
         if (claimFunctionName == keccak256("N/A")) {
             claimTokensFromIco();
@@ -388,9 +405,8 @@ contract IcoPoolParty is Ownable, usingOraclize {
 
     /*
      * INTEGRATION POINT WITH SALE CONTRACT
-     * @notice If tokens are not minted by ICO at time of purchase, they need to be claimed once the sale is over. Tokens are released to this contract - called once by anyone
-     * @dev Integration with Token Sale contract - claim tokens
-     *      actualGroupTokenPrice is calculated when the configuration is completed by the ICO
+     * @dev If tokens are not minted by ICO at time of purchase, they need to be claimed once the sale is over. Tokens are released to this contract. actualGroupTokenPrice is calculated when the
+     *      configuration is completed by the ICO
      */
     function claimTokensFromIco() public {
         require(poolStatus == Status.Claim);
@@ -406,9 +422,24 @@ contract IcoPoolParty is Ownable, usingOraclize {
         ClaimedTokensFromIco(address(this), totalTokensReceived, now);
     }
 
+    /*
+	 * INTEGRATION POINT WITH SALE CONTRACT
+	 * @dev In the case that the token sale is unsuccessful, withdraw funds from Sale Contract back to this contract in order for investors to claim their refund
+     */
+    function claimRefundFromIco() public {
+        require(poolStatus == Status.Claim);
+        require(totalTokensReceived == 0);
+        //TODO: Must prevent this from being called if claimTokensFromIco should be called instead
+        //TODO: Need a way to stop this function from being called again
+
+        require(destinationAddress.call(bytes4(refundFunctionName)));
+        balanceRemainingSnapshot = this.balance;
+
+        ClaimedRefundFromIco(address(this), msg.sender, now);
+    }
+
     /**
-     * @notice Allows participants to claim tokens once they have been received from the token sale
-     * @dev Tokens are distributed proportionately to how much they contributed. Mut be called before users can claim refund
+     * @dev Tokens are distributed proportionately to how much they contributed.
      */
     function claimTokens() public {
         Investor storage _investor = investors[msg.sender];
@@ -419,8 +450,9 @@ contract IcoPoolParty is Ownable, usingOraclize {
 
         uint256 _totalContribution = _investor.investmentAmount;
         _investor.investmentAmount = 0;
-        //TODO: Check this calculation...its not used yet though
-        _investor.percentageContribution = _totalContribution.mul(100).mul(DECIMAL_PRECISION).div(totalPoolInvestments);
+        if (_investor.percentageContribution == 0) {
+            setContributionPercentage(msg.sender, _totalContribution);
+        }
 
         uint256 _tokensDue = getInternalTokensDue(msg.sender, _totalContribution);
 
@@ -429,11 +461,19 @@ contract IcoPoolParty is Ownable, usingOraclize {
     }
 
     /**
-     * @dev Add comment here
+     * @dev If there are any funds left in the contract after once the sale completes, participants are entitled to claim their share proportionality to how much they contributed
      */
     function claimRefund() public {
+        Investor storage _investor = investors[msg.sender];
         require(poolStatus == Status.Claim);
-        //TODO: Implement this
+        require(_investor.canClaimRefund);
+
+        _investor.canClaimRefund = false;
+        if (_investor.investmentAmount != 0) { //If investmentAmount == 0, then refundAmount has already been set
+            setContributionPercentage(msg.sender, _investor.investmentAmount);
+        }
+
+        msg.sender.transfer(_investor.refundAmount);
     }
 
     /**
@@ -442,14 +482,13 @@ contract IcoPoolParty is Ownable, usingOraclize {
     function getPoolDetails()
         public
         view
-        returns (string,  uint256, uint256, uint256, uint256, uint256, address, address, Status)
+        returns (Status, uint256, uint256, uint256, address, address, address, uint256, uint256, bool)
     {
-        return(icoUrl, waterMark, feePercentage, withdrawalFee, expectedGroupDiscountPercent, totalPoolInvestments, destinationAddress, tokenAddress, poolStatus);
+        return (poolStatus, totalPoolInvestments, poolParticipants, withdrawalFee, destinationAddress, tokenAddress, saleOwnerAddress, publicEthPricePerToken, groupEthPricePerToken, subsidyRequired);
     }
 
     /**
-     * @notice Allows anyone to query the number of tokens due for a given address
-     * @dev Returns 0 unless the tokens have been released by the sale contract (totalTokensReceived > 0)
+     * @dev Allows anyone to query the number of tokens due for a given address. Returns 0 unless the tokens have been released by the sale contract (totalTokensReceived > 0)
      * @param _user The user address of the account to look up
      */
     function getTokensDue(address _user)
@@ -460,6 +499,25 @@ contract IcoPoolParty is Ownable, usingOraclize {
         return totalTokensReceived > 0 ? getInternalTokensDue(_user, investors[_user].investmentAmount) : 0;
     }
 
+    /**********************/
+    /* INTERNAL FUNCTIONS */
+    /**********************/
+    /**
+     * @dev Internal function that sets a participants contribution percentage and refund amount based on the amount originally contributed
+     * @param _user Participant to calculate for
+     * @param _investmentAmount Investment amount used in the calculation
+     */
+    function setContributionPercentage(address _user, uint _investmentAmount) internal {
+        Investor storage _investor = investors[_user];
+        _investor.percentageContribution = _investmentAmount.mul(100).mul(DECIMAL_PRECISION).div(totalPoolInvestments);
+        _investor.refundAmount = balanceRemainingSnapshot.mul(_investor.percentageContribution).div(100).div(DECIMAL_PRECISION);
+    }
+
+    /**
+     * @dev Get the amount of tokens a participant has due to them
+     * @param _user Participant to calculate for
+     * @param _amount Participants investment amount
+     */
     function getInternalTokensDue(address _user, uint256 _amount)
         internal
         view
@@ -469,14 +527,14 @@ contract IcoPoolParty is Ownable, usingOraclize {
         return _tokenPrecision == 0 ? _amount.div(groupEthPricePerToken) : _amount.mul(_tokenPrecision).div(groupEthPricePerToken);
     }
 
+    /**
+     * @dev Move the last element of the array to the index of the element being deleted, update the index of the item being moved, delete the last element of the
+     *      array (because its now at position _index), reduce the size of the array
+     */
     function removeInvestorFromList(uint256 _index) internal {
-        //Move the last element of the array to the index of the element being deleted
         investorList[_index] = investorList[investorList.length - 1];
-        //Update the index of the item being moved
         investors[investorList[_index]].arrayIndex = _index;
-        //Delete the last element of the array (because its now at position _index)
         delete investorList[investorList.length - 1];
-        //Reduce the size of the array
         investorList.length--;
     }
 }
