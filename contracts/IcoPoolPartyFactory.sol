@@ -10,7 +10,6 @@ contract IcoPoolPartyFactory is Ownable {
     uint256 public waterMark;
 
     address public poolPartyOwnerAddress;
-    address serviceAccountAddress;
 
     address[] public partyList;
     mapping(bytes32 => address) hashedPoolAddress;
@@ -19,21 +18,18 @@ contract IcoPoolPartyFactory is Ownable {
     event FeePercentageUpdate(address indexed updater, uint256 oldValue, uint256 newValue, uint256 date);
     event WithdrawalFeeUpdate(address indexed updater, uint256 oldValue, uint256 newValue, uint256 date);
     event GroupDiscountPercentageUpdate(address indexed updater, uint256 oldValue, uint256 newValue, uint256 date);
-    event ServiceAccountUpdate(address indexed updater, address oldValue, address newValue, uint256 date);
     event WaterMarkUpdate(address indexed updater, uint256 oldValue, uint256 newValue, uint256 date);
 
     /**
      * @dev Constructor for the Pool Party Factory
      * @param _poolPartyOwnerAddress Account that the fee for the pool party service goes to
-     * @param _serviceAccountAddress Account used by the hosted (trusted) service to update the ICO details (sale address, owner function names etc)
      */
-    function IcoPoolPartyFactory(address _poolPartyOwnerAddress, address _serviceAccountAddress) public {
-        feePercentage = 5;
+    function IcoPoolPartyFactory(address _poolPartyOwnerAddress) public {
+        feePercentage = 4;
         withdrawalFee = 0.0015 ether;
         groupDiscountPercent = 15;
         waterMark = 100 ether;
         poolPartyOwnerAddress = _poolPartyOwnerAddress;
-        serviceAccountAddress = _serviceAccountAddress;
     }
 
     /**
@@ -44,7 +40,7 @@ contract IcoPoolPartyFactory is Ownable {
         bytes32 _hashedIcoUrl = keccak256(_icoUrl);
         require(hashedPoolAddress[_hashedIcoUrl] == 0x0);
 
-        IcoPoolParty poolPartyContract = new IcoPoolParty(_icoUrl, waterMark, feePercentage, withdrawalFee, groupDiscountPercent, poolPartyOwnerAddress, serviceAccountAddress);
+        IcoPoolParty poolPartyContract = new IcoPoolParty(_icoUrl, waterMark, feePercentage, withdrawalFee, groupDiscountPercent, poolPartyOwnerAddress);
         poolPartyContract.transferOwnership(msg.sender);
         partyList.push(address(poolPartyContract));
         hashedPoolAddress[_hashedIcoUrl] = address(poolPartyContract);
@@ -96,17 +92,6 @@ contract IcoPoolPartyFactory is Ownable {
         groupDiscountPercent = _discountPercent;
 
         GroupDiscountPercentageUpdate(msg.sender, _oldValue, _discountPercent, now);
-    }
-
-    /**
-     * @dev Set the service account address that is used by our hosted service
-     * @param _serviceAccount The new service account address
-     */
-    function setServiceAccount(address _serviceAccount) public onlyOwner {
-        address _oldValue = serviceAccountAddress;
-        serviceAccountAddress = _serviceAccount;
-
-        ServiceAccountUpdate(msg.sender, _oldValue, _serviceAccount, now);
     }
 
     /**

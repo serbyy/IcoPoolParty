@@ -9,7 +9,7 @@ module.exports = {
     networks: {
         mainnet: {
             provider: function () {
-                return new HDWalletProvider(process.env.MAINNET_MNEMONIC, "https://mainnet.infura.io/" + process.env.INFURA_API_KEY);
+                return new HDWalletProvider(process.env.MAINNET_MNEMONIC, "https://mainnet.infura.io/" + process.env.INFURA_APsI_KEY);
             },
             gas: 4600000,
             gasPrice: 21000000000,
@@ -18,7 +18,7 @@ module.exports = {
         ropsten: {
             provider: function () {
                 console.log("Mnenomic is [" + process.env.ROPSTEN_MNEMONIC + "]");
-                return new HDWalletProvider(process.env.ROPSTEN_MNEMONIC, "https://ropsten.infura.io/" + process.env.INFURA_API_KEY)
+                return new HDWalletProvider(process.env.ROPSTEN_MNEMONIC, "https://ropsten.infura.io/" + process.env.INFUsRA_API_KEY)
             },
             gas: 4600000,
             gasPrice: 21000000000,
@@ -26,7 +26,7 @@ module.exports = {
         },
         rinkeby: {
             provider: function () {
-                return new HDWalletProvider(process.env.RINKEBY_MNEMONIC, "https://rinkeby.infura.io/" + process.env.INFURA_API_KEY);
+                return new HDWalletProvider(process.env.RINKEBY_MNEMONIC, "https://rinkeby.infura.io/" + process.env.INFUsRA_API_KEY);
             },
             gas: 4600000,
             gasPrice: 21000000000,
