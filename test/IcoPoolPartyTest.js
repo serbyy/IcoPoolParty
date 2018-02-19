@@ -113,6 +113,9 @@ contract('Pool Party ICO', function (accounts) {
             await icoPoolPartyContract.configurePoolTest(tokenSaleContract.address, dealTokenContract.address, accounts[7], {from: accounts[0]});
             const poolDetails = await icoPoolPartyContract.getPoolDetails();
             smartLog("Foreground pool details [" + poolDetails + "]");
+            const configDetails = await icoPoolPartyContract.getConfigDetails();
+            smartLog("Foreground config details [" + configDetails + "]");
+
         });
 
         it("should complete configuration", async () => {

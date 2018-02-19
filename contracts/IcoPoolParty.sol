@@ -25,15 +25,19 @@ contract IcoPoolParty is Ownable, usingOraclize {
     address public destinationAddress;
     IErc20Token public tokenAddress;
     address public saleOwnerAddress;
-    bytes32 public buyFunctionName;
-    bytes32 public refundFunctionName;
-    bytes32 public claimFunctionName;
+    string public buyFunctionName;
+    string public refundFunctionName;
+    string public claimFunctionName;
     uint256 public publicEthPricePerToken; //TODO: Should be price in WEI, code assumes WEI
     uint256 public groupEthPricePerToken; //TODO: Should be price in WEI, code assumes WEI
     bool public subsidyRequired;
 
+    bytes32 hashedBuyFunctionName;
+    bytes32 hashedRefundFunctionName;
+    bytes32 hashedClaimFunctionName;
+
     /* Oraclize queries */
-    /*string oraclizeQueryDestinationAddress;
+    string oraclizeQueryDestinationAddress;
     string oraclizeQueryTokenAddress;
     string oraclizeQuerySaleOwnerAddress;
     string oraclizeQueryBuyFunction;
@@ -41,7 +45,7 @@ contract IcoPoolParty is Ownable, usingOraclize {
     string oraclizeQueryClaimFunction;
     string oraclizeQueryPublicEthPricePerToken;
     string oraclizeQueryGroupEthPricePerToken;
-    string oraclizeQuerySubsidyRequired;*/
+    string oraclizeQuerySubsidyRequired;
 
     /* Pool values */
     uint256 public expectedGroupTokenPrice;
@@ -162,7 +166,6 @@ contract IcoPoolParty is Ownable, usingOraclize {
      * @dev Default fallback function, only the sale address is allowed to send funds directly to this contract
      */
     function () public payable {
-        require(msg.sender == destinationAddress);
     }
 
     /**
@@ -179,8 +182,7 @@ contract IcoPoolParty is Ownable, usingOraclize {
             poolStatus == Status.WaterMarkReached ||
             poolStatus == Status.DueDiligence
         );
-        //TODO: What should the minimum amount be?
-        require(msg.value >= 0.1 ether);
+        require(msg.value >= 0.01 ether);
 
         Investor storage _investor = investors[msg.sender];
 
@@ -229,9 +231,12 @@ contract IcoPoolParty is Ownable, usingOraclize {
         destinationAddress = _destination;
         tokenAddress = IErc20Token(_token);
         saleOwnerAddress = _owner;
-        buyFunctionName = keccak256("N/A");
-        refundFunctionName = keccak256("claimRefund()");
-        claimFunctionName = keccak256("claimToken()");
+        buyFunctionName = "N/A";
+        hashedBuyFunctionName = keccak256(buyFunctionName);
+        refundFunctionName = "claimRefund()";
+        hashedRefundFunctionName = keccak256(refundFunctionName);
+        claimFunctionName = "claimToken()";
+        hashedClaimFunctionName = keccak256(claimFunctionName);
         publicEthPricePerToken = 0.05 ether;
         groupEthPricePerToken = 0.04 ether;
         subsidyRequired = true;
@@ -246,8 +251,7 @@ contract IcoPoolParty is Ownable, usingOraclize {
     {
         require(poolStatus == Status.WaterMarkReached);
         //oraclize_query("URL", oraclizeQueryDestinationAddress);
-        //oraclize_query("URL", "json(http://api.test.foreground.io/pool/example?json=true).destinationAddress");
-        oraclize_query("URL", "json(http://api.test.foreground.io/pool/example?json=true)");
+        oraclize_query("URL", "json(http://api.test.foreground.io/pool/example?json=true).destinationAddress");
     }
 
     /**
@@ -270,16 +274,19 @@ contract IcoPoolParty is Ownable, usingOraclize {
             saleOwnerAddress = parseAddr(_result);
             //oraclize_query("URL", oraclizeQueryBuyFunction);
             oraclize_query("URL", "json(http://api.test.foreground.io/pool/example?json=true).buyFunction");
-        } else if (buyFunctionName == 0x0) {
-            buyFunctionName = keccak256(_result);
+        } else if (hashedBuyFunctionName == 0x0) {
+            buyFunctionName = _result;
+            hashedBuyFunctionName = keccak256(buyFunctionName);
             //oraclize_query("URL", oraclizeQueryRefundFunction);
             oraclize_query("URL", "json(http://api.test.foreground.io/pool/example?json=true).refundFunction");
-        } else if (refundFunctionName == 0x0) {
-            refundFunctionName = keccak256(_result);
+        } else if (hashedRefundFunctionName == 0x0) {
+            refundFunctionName = _result;
+            hashedRefundFunctionName = keccak256(refundFunctionName);
             //oraclize_query("URL", oraclizeQueryClaimFunction);
             oraclize_query("URL", "json(http://api.test.foreground.io/pool/example?json=true).claimFunction");
-        } else if (claimFunctionName == 0x0) {
-            claimFunctionName = keccak256(_result);
+        } else if (hashedClaimFunctionName == 0x0) {
+            claimFunctionName = _result;
+            hashedClaimFunctionName = keccak256(claimFunctionName);
             //oraclize_query("URL", oraclizeQueryPublicEthPricePerToken);
             oraclize_query("URL", "json(http://api.test.foreground.io/pool/example?json=true).publicETHPricePerToken");
         } else if (publicEthPricePerToken == 0) {
@@ -306,9 +313,9 @@ contract IcoPoolParty is Ownable, usingOraclize {
             destinationAddress != 0x0 &&
             address(tokenAddress) != 0x0 &&
             saleOwnerAddress != 0x0 &&
-            buyFunctionName != 0x0 &&
-            refundFunctionName != 0x0 &&
-            claimFunctionName != 0x0 &&
+            hashedBuyFunctionName != 0x0 &&
+            hashedRefundFunctionName != 0x0 &&
+            hashedClaimFunctionName != 0x0 &&
             publicEthPricePerToken > 0 &&
             groupEthPricePerToken > 0
         );
@@ -386,16 +393,16 @@ contract IcoPoolParty is Ownable, usingOraclize {
         poolPartyOwnerAddress.transfer(_feeAmount);
 
         //Release funds to sale contract
-        if (buyFunctionName == keccak256("N/A")) { //Call fallback function
+        if (hashedBuyFunctionName == keccak256("N/A")) { //Call fallback function
             require(destinationAddress.call.gas(300000).value(_amountToRelease)());
         } else { //Call function specified during creation
-            require(destinationAddress.call.gas(300000).value(_amountToRelease)(bytes4(buyFunctionName)));
+            require(destinationAddress.call.gas(300000).value(_amountToRelease)(bytes4(hashedBuyFunctionName)));
         }
 
         balanceRemainingSnapshot = this.balance;
 
         //If there is no claim function then assume tokens are minted at time they are bought (for example TokenMarketCrowdSale)
-        if (claimFunctionName == keccak256("N/A")) {
+        if (hashedClaimFunctionName == keccak256("N/A")) {
             claimTokensFromIco();
         }
 
@@ -412,8 +419,8 @@ contract IcoPoolParty is Ownable, usingOraclize {
         require(poolStatus == Status.Claim);
         require(totalTokensReceived == 0);
 
-        if (claimFunctionName != keccak256("N/A")) {
-            require(destinationAddress.call(bytes4(claimFunctionName)));
+        if (hashedClaimFunctionName != keccak256("N/A")) {
+            require(destinationAddress.call(bytes4(hashedClaimFunctionName)));
         }
 
         totalTokensReceived = tokenAddress.balanceOf(address(this));
@@ -432,7 +439,7 @@ contract IcoPoolParty is Ownable, usingOraclize {
         //TODO: Must prevent this from being called if claimTokensFromIco should be called instead
         //TODO: Need a way to stop this function from being called again
 
-        require(destinationAddress.call(bytes4(refundFunctionName)));
+        require(destinationAddress.call(bytes4(hashedRefundFunctionName)));
         balanceRemainingSnapshot = this.balance;
 
         ClaimedRefundFromIco(address(this), msg.sender, now);
@@ -477,14 +484,25 @@ contract IcoPoolParty is Ownable, usingOraclize {
     }
 
     /**
-     * @notice Returns all relevant pool details in 1 function
+     * @dev Returns all relevant pool configurations in 1 function
+     */
+    function getConfigDetails()
+        public
+        view
+        returns (address, address, address, uint256, uint256, bool, string, string, string)
+    {
+        return (destinationAddress, tokenAddress, saleOwnerAddress, publicEthPricePerToken, groupEthPricePerToken, subsidyRequired, buyFunctionName, refundFunctionName, claimFunctionName);
+    }
+
+    /**
+     * @dev Returns all relevant pool details in 1 function
      */
     function getPoolDetails()
         public
         view
-        returns (Status, uint256, uint256, uint256, address, address, address, uint256, uint256, bool)
+        returns (Status, uint256, uint256, uint256, uint256)
     {
-        return (poolStatus, totalPoolInvestments, poolParticipants, withdrawalFee, destinationAddress, tokenAddress, saleOwnerAddress, publicEthPricePerToken, groupEthPricePerToken, subsidyRequired);
+        return (poolStatus, totalPoolInvestments, poolParticipants, withdrawalFee, waterMark);
     }
 
     /**
