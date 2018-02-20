@@ -5,38 +5,20 @@ import "zeppelin-solidity/contracts/math/SafeMath.sol";
 
 import "./interfaces/IErc20Token.sol";
 import "./usingOraclize.sol";
+import "./strings.sol";
 
 contract IcoPoolParty is Ownable, usingOraclize {
     using SafeMath for uint256;
+    using strings for *;
 
     /* Constants */
     uint256 constant VERSION = 1;
     uint256 constant DECIMAL_PRECISION = 10**18;
 
-    /* Constructor parameters */
     string public icoUrl;
-    uint256 public waterMark;
-    uint256 public feePercentage;
-    uint256 public withdrawalFee;
-    uint256 public expectedGroupDiscountPercent;
-    address public poolPartyOwnerAddress;
-
-    /* Pool configuration parameters */
-    address public destinationAddress;
-    IErc20Token public tokenAddress;
-    address public saleOwnerAddress;
     string public buyFunctionName;
     string public refundFunctionName;
     string public claimFunctionName;
-    uint256 public publicEthPricePerToken; //TODO: Should be price in WEI, code assumes WEI
-    uint256 public groupEthPricePerToken; //TODO: Should be price in WEI, code assumes WEI
-    bool public subsidyRequired;
-
-    bytes32 hashedBuyFunctionName;
-    bytes32 hashedRefundFunctionName;
-    bytes32 hashedClaimFunctionName;
-
-    /* Oraclize queries */
     string oraclizeQueryDestinationAddress;
     string oraclizeQueryTokenAddress;
     string oraclizeQuerySaleOwnerAddress;
@@ -47,7 +29,12 @@ contract IcoPoolParty is Ownable, usingOraclize {
     string oraclizeQueryGroupEthPricePerToken;
     string oraclizeQuerySubsidyRequired;
 
-    /* Pool values */
+    uint256 public waterMark;
+    uint256 public feePercentage;
+    uint256 public withdrawalFee;
+    uint256 public expectedGroupDiscountPercent;
+    uint256 public publicEthPricePerToken;
+    uint256 public groupEthPricePerToken;
     uint256 public expectedGroupTokenPrice;
     uint256 public actualGroupDiscountPercent;
     uint256 public totalPoolInvestments;
@@ -55,9 +42,24 @@ contract IcoPoolParty is Ownable, usingOraclize {
     uint256 public poolParticipants;
     uint256 public reviewPeriodStart;
     uint256 public balanceRemainingSnapshot;
+
+    address public poolPartyOwnerAddress;
+    address public destinationAddress;
+    address public saleOwnerAddress;
+
+    bool public subsidyRequired;
+
+    bytes32 hashedBuyFunctionName;
+    bytes32 hashedRefundFunctionName;
+    bytes32 hashedClaimFunctionName;
+
+    IErc20Token public tokenAddress;
+
     Status public poolStatus;
     address[] public investorList;
+
     mapping(address => Investor) public investors;
+    mapping(bytes32 => bytes32) queryMapping;
 
     struct Investor {
         uint256 investmentAmount;
@@ -147,17 +149,16 @@ contract IcoPoolParty is Ownable, usingOraclize {
         poolPartyOwnerAddress = _poolPartyOwnerAddress;
         poolParticipants = 0;
 
-        //OAR = OraclizeAddrResolverI(0x6f485C8BF6fc43eA212E93BBF8ce046C7f1cb475); //TODO: ONLY USED FOR LOCAL TESTING
-        //oraclizeQueryDestinationAddress = "json(http://".toSlice().concat(icoUrl.toSlice());
-        /*oraclizeQueryDestinationAddress = strConcat("json(http://", icoUrl, "/pool/example?json=true).destinationAddress");
-        oraclizeQueryTokenAddress = strConcat("json(http://", icoUrl, "/pool/example?json=true).tokenAddress");
-        oraclizeQuerySaleOwnerAddress = strConcat("json(http://", icoUrl, "/pool/example?json=true).saleOwnerAddress");
-        oraclizeQueryBuyFunction = strConcat("json(http://", icoUrl, "/pool/example?json=true).buyFunction");
-        oraclizeQueryRefundFunction = strConcat("json(http://", icoUrl, "/pool/example?json=true).refundFunction");
-        oraclizeQueryClaimFunction = strConcat("json(http://", icoUrl, "/pool/example?json=true).claimFunction");
-        oraclizeQueryPublicEthPricePerToken = strConcat("json(http://", icoUrl, "/pool/example?json=true).publicETHPricePerToken");
-        oraclizeQueryGroupEthPricePerToken = strConcat("json(http://", icoUrl, "/pool/example?json=true).groupETHPricePerToken");
-        oraclizeQuerySubsidyRequired = strConcat("json(http://", icoUrl, "/pool/example?json=true).subsidyRequired");*/
+        OAR = OraclizeAddrResolverI(0x6f485C8BF6fc43eA212E93BBF8ce046C7f1cb475); //TODO: ONLY USED FOR LOCAL TESTING
+        oraclizeQueryDestinationAddress = ("json(http://".toSlice().concat(icoUrl.toSlice())).toSlice().concat("/pool/example?json=true).destinationAddress".toSlice());
+        oraclizeQueryTokenAddress = ("json(http://".toSlice().concat(icoUrl.toSlice())).toSlice().concat("/pool/example?json=true).tokenAddress".toSlice());
+        oraclizeQuerySaleOwnerAddress = ("json(http://".toSlice().concat(icoUrl.toSlice())).toSlice().concat("/pool/example?json=true).saleOwnerAddress".toSlice());
+        oraclizeQueryBuyFunction = ("json(http://".toSlice().concat(icoUrl.toSlice())).toSlice().concat("/pool/example?json=true).buyFunction".toSlice());
+        oraclizeQueryRefundFunction = ("json(http://".toSlice().concat(icoUrl.toSlice())).toSlice().concat("/pool/example?json=true).refundFunction".toSlice());
+        oraclizeQueryClaimFunction = ("json(http://".toSlice().concat(icoUrl.toSlice())).toSlice().concat("/pool/example?json=true).claimFunction".toSlice());
+        oraclizeQueryPublicEthPricePerToken = ("json(http://".toSlice().concat(icoUrl.toSlice())).toSlice().concat("/pool/example?json=true).publicETHPricePerToken".toSlice());
+        oraclizeQueryGroupEthPricePerToken = ("json(http://".toSlice().concat(icoUrl.toSlice())).toSlice().concat("/pool/example?json=true).groupETHPricePerToken".toSlice());
+        oraclizeQuerySubsidyRequired = ("json(http://".toSlice().concat(icoUrl.toSlice())).toSlice().concat("/pool/example?json=true).subsidyRequired".toSlice());
 
         PoolCreated(icoUrl, now);
     }
@@ -250,8 +251,8 @@ contract IcoPoolParty is Ownable, usingOraclize {
         payable
     {
         require(poolStatus == Status.WaterMarkReached);
-        //oraclize_query("URL", oraclizeQueryDestinationAddress);
-        oraclize_query("URL", "json(http://api.test.foreground.io/pool/example?json=true).destinationAddress");
+        bytes32 _qId = oraclize_query("URL", oraclizeQueryDestinationAddress);
+        queryMapping[_qId] = keccak256("destinationAddress");
     }
 
     /**
@@ -262,46 +263,47 @@ contract IcoPoolParty is Ownable, usingOraclize {
     function __callback(bytes32 _qId, string _result) public {
         require (msg.sender == oraclize_cbAddress());
 
-        /*if (destinationAddress == 0x0) {
+        bytes32 paramToSet = queryMapping[_qId];
+        delete queryMapping[_qId];
+
+        if(paramToSet == keccak256("destinationAddress")) {
             destinationAddress = parseAddr(_result);
-            //oraclize_query("URL", oraclizeQueryTokenAddress);
-            oraclize_query("URL", "json(http://api.test.foreground.io/pool/example?json=true).tokenAddress");
-        } else if (address(tokenAddress) == 0x0) {
+            bytes32 _tokenAddressId = oraclize_query("URL", oraclizeQueryTokenAddress);
+            queryMapping[_tokenAddressId] = keccak256("tokenAddress");
+        } else if (paramToSet == keccak256("tokenAddress")) {
             tokenAddress = IErc20Token(parseAddr(_result));
-            //oraclize_query("URL", oraclizeQuerySaleOwnerAddress);
-            oraclize_query("URL", "json(http://api.test.foreground.io/pool/example?json=true).saleOwnerAddress");
-        } else if (saleOwnerAddress == 0x0) {
+            bytes32 _saleOwnerAddressId = oraclize_query("URL", oraclizeQuerySaleOwnerAddress);
+            queryMapping[_saleOwnerAddressId] = keccak256("saleOwnerAddress");
+        } else if (paramToSet == keccak256("saleOwnerAddress")) {
             saleOwnerAddress = parseAddr(_result);
-            //oraclize_query("URL", oraclizeQueryBuyFunction);
-            oraclize_query("URL", "json(http://api.test.foreground.io/pool/example?json=true).buyFunction");
-        } else if (hashedBuyFunctionName == 0x0) {
+            bytes32 _buyFunctionId = oraclize_query("URL", oraclizeQueryBuyFunction);
+            queryMapping[_buyFunctionId] = keccak256("buyFunction");
+        } else if (paramToSet == keccak256("buyFunction")) {
             buyFunctionName = _result;
             hashedBuyFunctionName = keccak256(buyFunctionName);
-            //oraclize_query("URL", oraclizeQueryRefundFunction);
-            oraclize_query("URL", "json(http://api.test.foreground.io/pool/example?json=true).refundFunction");
-        } else if (hashedRefundFunctionName == 0x0) {
+            bytes32 _refundFunctionId = oraclize_query("URL", oraclizeQueryRefundFunction);
+            queryMapping[_refundFunctionId] = keccak256("refundFunction");
+        } else if (paramToSet == keccak256("refundFunction")) {
             refundFunctionName = _result;
             hashedRefundFunctionName = keccak256(refundFunctionName);
-            //oraclize_query("URL", oraclizeQueryClaimFunction);
-            oraclize_query("URL", "json(http://api.test.foreground.io/pool/example?json=true).claimFunction");
-        } else if (hashedClaimFunctionName == 0x0) {
+            bytes32 _claimFunctionId = oraclize_query("URL", oraclizeQueryClaimFunction);
+            queryMapping[_claimFunctionId] = keccak256("claimFunction");
+        } else if (paramToSet == keccak256("claimFunction")) {
             claimFunctionName = _result;
             hashedClaimFunctionName = keccak256(claimFunctionName);
-            //oraclize_query("URL", oraclizeQueryPublicEthPricePerToken);
-            oraclize_query("URL", "json(http://api.test.foreground.io/pool/example?json=true).publicETHPricePerToken");
-        } else if (publicEthPricePerToken == 0) {
+            bytes32 _publicEthId = oraclize_query("URL", oraclizeQueryPublicEthPricePerToken);
+            queryMapping[_publicEthId] = keccak256("publicETHPricePerToken");
+        } else if (paramToSet == keccak256("publicETHPricePerToken")) {
             publicEthPricePerToken = parseInt(_result);
-            //oraclize_query("URL", oraclizeQueryGroupEthPricePerToken);
-            oraclize_query("URL", "json(http://api.test.foreground.io/pool/example?json=true).groupETHPricePerToken");
-        } else if (groupEthPricePerToken == 0) {
+            bytes32 _groupEthId = oraclize_query("URL", oraclizeQueryGroupEthPricePerToken);
+            queryMapping[_groupEthId] = keccak256("groupETHPricePerToken");
+        } else if (paramToSet == keccak256("groupETHPricePerToken")) {
             groupEthPricePerToken = parseInt(_result);
-            //oraclize_query("URL", oraclizeQuerySubsidyRequired);
-            oraclize_query("URL", "json(http://api.test.foreground.io/pool/example?json=true).subsidyRequired");
-        } else if (subsidyRequired == false) {
-            //TODO: Convert value received from Oraclize to boolean - no built in method to do this
-            //subsidyRequired = parseInt(_result);
-            subsidyRequired = true;
-        }*/
+            bytes32 _subsidyId = oraclize_query("URL", oraclizeQuerySubsidyRequired);
+            queryMapping[_subsidyId] = keccak256("subsidyRequired");
+        } else if (paramToSet == keccak256("subsidyRequired")) {
+            subsidyRequired = keccak256(_result) == keccak256("false") ? false : true;
+        }
     }
 
     /**
@@ -331,7 +333,6 @@ contract IcoPoolParty is Ownable, usingOraclize {
     }
 
     /**
-     * @notice
      * @dev Allows owners to remove investors who do not comply with KYC. A small fee is charged to the person being kicked from the pool (only enough to cover gas costs of the transaction)
      * @param _userToKick Address of the person to kick from the pool.
      */
@@ -356,7 +357,6 @@ contract IcoPoolParty is Ownable, usingOraclize {
         uint256 _fee = _amountToRefund < withdrawalFee ? _amountToRefund : withdrawalFee;
         InvestorEjected(_userToKick, _fee, _amountToRefund.sub(_fee), now);
 
-        //TODO: who should get this fee? Currently goes to the caller of the function
         msg.sender.transfer(_fee);
         _userToKick.transfer(_amountToRefund.sub(_fee));
     }
@@ -461,7 +461,7 @@ contract IcoPoolParty is Ownable, usingOraclize {
             setContributionPercentage(msg.sender, _totalContribution);
         }
 
-        uint256 _tokensDue = getInternalTokensDue(msg.sender, _totalContribution);
+        uint256 _tokensDue = calculateTokensDue(msg.sender, _totalContribution);
 
         TokensClaimed(msg.sender, _totalContribution, _tokensDue, now);
         tokenAddress.transfer(msg.sender, _tokensDue);
@@ -514,7 +514,7 @@ contract IcoPoolParty is Ownable, usingOraclize {
         view
         returns (uint256)
     {
-        return totalTokensReceived > 0 ? getInternalTokensDue(_user, investors[_user].investmentAmount) : 0;
+        return totalTokensReceived > 0 ? calculateTokensDue(_user, investors[_user].investmentAmount) : 0;
     }
 
     /**********************/
@@ -536,7 +536,7 @@ contract IcoPoolParty is Ownable, usingOraclize {
      * @param _user Participant to calculate for
      * @param _amount Participants investment amount
      */
-    function getInternalTokensDue(address _user, uint256 _amount)
+    function calculateTokensDue(address _user, uint256 _amount)
         internal
         view
         returns (uint256)

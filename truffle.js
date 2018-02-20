@@ -32,5 +32,12 @@ module.exports = {
             gasPrice: 21000000000,
             network_id: "4"
         }
+    },
+
+    solc: {
+        optimizer: {
+            enabled: true,
+            runs: 200
+        }
     }
 };

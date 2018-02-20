@@ -28,7 +28,7 @@ contract IcoPoolPartyFactory is Ownable {
         feePercentage = 4;
         withdrawalFee = 0.0015 ether;
         groupDiscountPercent = 15;
-        waterMark = 100 ether;
+        waterMark = 15 ether;
         poolPartyOwnerAddress = _poolPartyOwnerAddress;
     }
 
