@@ -18,13 +18,12 @@ contract('Pool Party ICO', function (accounts) {
         this.slow(5000);
 
         before(async () => {
-            icoPoolPartyFactoryContract = await icoPoolPartyFactory.new(accounts[0]);
+            icoPoolPartyFactoryContract = await icoPoolPartyFactory.deployed();
             smartLog("Pool Party Factory Address [" + await icoPoolPartyFactoryContract.address + "]");
 
             await icoPoolPartyFactoryContract.setWaterMark(web3.toWei("10", "ether"), {from: accounts[0]});
             smartLog("New watermark [" + await icoPoolPartyFactoryContract.waterMark() + "]");
 
-            //tokenSaleContract = await foregroundTokenSale.new(400, 100, web3.toWei(0.05, "ether"), "0x2755f888047Db8E3d169C6A427470C44b19a7270");
             tokenSaleContract = await foregroundTokenSale.new(400, 100, web3.toWei(0.05, "ether"), accounts[1]);
             let tokenSaleStartBlockNumber = web3.eth.blockNumber + 1;
             let tokenSaleEndBlockNumber = tokenSaleStartBlockNumber + 500;
@@ -33,7 +32,8 @@ contract('Pool Party ICO', function (accounts) {
         });
 
         it("should create new Pool Party", async () => {
-            await icoPoolPartyFactoryContract.createNewPoolParty("api.test.foreground.io", {from:accounts[1]});
+            const tx = await icoPoolPartyFactoryContract.createNewPoolParty("api.test.foreground.io", {from:accounts[1]});
+            smartLog(tx);
             const poolAddress = await icoPoolPartyFactoryContract.partyList(0);
             icoPoolPartyContract = icoPoolParty.at(poolAddress);
             smartLog("Foreground Pool Party Address [" + icoPoolPartyContract.address + "]");
@@ -93,6 +93,7 @@ contract('Pool Party ICO', function (accounts) {
             assert.equal(totalInvested, web3.toWei("11.03123123", "ether"), "Incorrect total");
         });
 
+        //LEGIT SKIP
         it.skip("should configure pool using actual oraclize call", async () => {
             await icoPoolPartyContract.addFundsToPool({from: accounts[2], value: web3.toWei("1", "ether")});
             const poolState = await icoPoolPartyContract.poolStatus();

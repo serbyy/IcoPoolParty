@@ -5,11 +5,11 @@ import "zeppelin-solidity/contracts/math/SafeMath.sol";
 
 import "./interfaces/IErc20Token.sol";
 import "./usingOraclize.sol";
-import "./strings.sol";
+import "./libraries/OraclizeQueryBuilder.sol";
 
 contract IcoPoolParty is Ownable, usingOraclize {
     using SafeMath for uint256;
-    using strings for *;
+    using OraclizeQueryBuilder for OraclizeQueryBuilder.OraclizeQueries;
 
     /* Constants */
     uint256 constant VERSION = 1;
@@ -19,15 +19,6 @@ contract IcoPoolParty is Ownable, usingOraclize {
     string public buyFunctionName;
     string public refundFunctionName;
     string public claimFunctionName;
-    string oraclizeQueryDestinationAddress;
-    string oraclizeQueryTokenAddress;
-    string oraclizeQuerySaleOwnerAddress;
-    string oraclizeQueryBuyFunction;
-    string oraclizeQueryRefundFunction;
-    string oraclizeQueryClaimFunction;
-    string oraclizeQueryPublicEthPricePerToken;
-    string oraclizeQueryGroupEthPricePerToken;
-    string oraclizeQuerySubsidyRequired;
 
     uint256 public waterMark;
     uint256 public feePercentage;
@@ -53,6 +44,7 @@ contract IcoPoolParty is Ownable, usingOraclize {
     bytes32 hashedRefundFunctionName;
     bytes32 hashedClaimFunctionName;
 
+    OraclizeQueryBuilder.OraclizeQueries oQueries;
     IErc20Token public tokenAddress;
 
     Status public poolStatus;
@@ -150,16 +142,6 @@ contract IcoPoolParty is Ownable, usingOraclize {
         poolParticipants = 0;
 
         OAR = OraclizeAddrResolverI(0x6f485C8BF6fc43eA212E93BBF8ce046C7f1cb475); //TODO: ONLY USED FOR LOCAL TESTING
-        oraclizeQueryDestinationAddress = ("json(http://".toSlice().concat(icoUrl.toSlice())).toSlice().concat("/pool/example?json=true).destinationAddress".toSlice());
-        oraclizeQueryTokenAddress = ("json(http://".toSlice().concat(icoUrl.toSlice())).toSlice().concat("/pool/example?json=true).tokenAddress".toSlice());
-        oraclizeQuerySaleOwnerAddress = ("json(http://".toSlice().concat(icoUrl.toSlice())).toSlice().concat("/pool/example?json=true).saleOwnerAddress".toSlice());
-        oraclizeQueryBuyFunction = ("json(http://".toSlice().concat(icoUrl.toSlice())).toSlice().concat("/pool/example?json=true).buyFunction".toSlice());
-        oraclizeQueryRefundFunction = ("json(http://".toSlice().concat(icoUrl.toSlice())).toSlice().concat("/pool/example?json=true).refundFunction".toSlice());
-        oraclizeQueryClaimFunction = ("json(http://".toSlice().concat(icoUrl.toSlice())).toSlice().concat("/pool/example?json=true).claimFunction".toSlice());
-        oraclizeQueryPublicEthPricePerToken = ("json(http://".toSlice().concat(icoUrl.toSlice())).toSlice().concat("/pool/example?json=true).publicETHPricePerToken".toSlice());
-        oraclizeQueryGroupEthPricePerToken = ("json(http://".toSlice().concat(icoUrl.toSlice())).toSlice().concat("/pool/example?json=true).groupETHPricePerToken".toSlice());
-        oraclizeQuerySubsidyRequired = ("json(http://".toSlice().concat(icoUrl.toSlice())).toSlice().concat("/pool/example?json=true).subsidyRequired".toSlice());
-
         PoolCreated(icoUrl, now);
     }
 
@@ -251,7 +233,8 @@ contract IcoPoolParty is Ownable, usingOraclize {
         payable
     {
         require(poolStatus == Status.WaterMarkReached);
-        bytes32 _qId = oraclize_query("URL", oraclizeQueryDestinationAddress);
+        oQueries.buildQueries(icoUrl);
+        bytes32 _qId = oraclize_query("URL", oQueries.oraclizeQueryDestinationAddress);
         queryMapping[_qId] = keccak256("destinationAddress");
     }
 
@@ -268,38 +251,38 @@ contract IcoPoolParty is Ownable, usingOraclize {
 
         if(paramToSet == keccak256("destinationAddress")) {
             destinationAddress = parseAddr(_result);
-            bytes32 _tokenAddressId = oraclize_query("URL", oraclizeQueryTokenAddress);
+            bytes32 _tokenAddressId = oraclize_query("URL", oQueries.oraclizeQueryTokenAddress);
             queryMapping[_tokenAddressId] = keccak256("tokenAddress");
         } else if (paramToSet == keccak256("tokenAddress")) {
             tokenAddress = IErc20Token(parseAddr(_result));
-            bytes32 _saleOwnerAddressId = oraclize_query("URL", oraclizeQuerySaleOwnerAddress);
+            bytes32 _saleOwnerAddressId = oraclize_query("URL", oQueries.oraclizeQuerySaleOwnerAddress);
             queryMapping[_saleOwnerAddressId] = keccak256("saleOwnerAddress");
         } else if (paramToSet == keccak256("saleOwnerAddress")) {
             saleOwnerAddress = parseAddr(_result);
-            bytes32 _buyFunctionId = oraclize_query("URL", oraclizeQueryBuyFunction);
+            bytes32 _buyFunctionId = oraclize_query("URL", oQueries.oraclizeQueryBuyFunction);
             queryMapping[_buyFunctionId] = keccak256("buyFunction");
         } else if (paramToSet == keccak256("buyFunction")) {
             buyFunctionName = _result;
             hashedBuyFunctionName = keccak256(buyFunctionName);
-            bytes32 _refundFunctionId = oraclize_query("URL", oraclizeQueryRefundFunction);
+            bytes32 _refundFunctionId = oraclize_query("URL", oQueries.oraclizeQueryRefundFunction);
             queryMapping[_refundFunctionId] = keccak256("refundFunction");
         } else if (paramToSet == keccak256("refundFunction")) {
             refundFunctionName = _result;
             hashedRefundFunctionName = keccak256(refundFunctionName);
-            bytes32 _claimFunctionId = oraclize_query("URL", oraclizeQueryClaimFunction);
+            bytes32 _claimFunctionId = oraclize_query("URL", oQueries.oraclizeQueryClaimFunction);
             queryMapping[_claimFunctionId] = keccak256("claimFunction");
         } else if (paramToSet == keccak256("claimFunction")) {
             claimFunctionName = _result;
             hashedClaimFunctionName = keccak256(claimFunctionName);
-            bytes32 _publicEthId = oraclize_query("URL", oraclizeQueryPublicEthPricePerToken);
+            bytes32 _publicEthId = oraclize_query("URL", oQueries.oraclizeQueryPublicEthPricePerToken);
             queryMapping[_publicEthId] = keccak256("publicETHPricePerToken");
         } else if (paramToSet == keccak256("publicETHPricePerToken")) {
             publicEthPricePerToken = parseInt(_result);
-            bytes32 _groupEthId = oraclize_query("URL", oraclizeQueryGroupEthPricePerToken);
+            bytes32 _groupEthId = oraclize_query("URL", oQueries.oraclizeQueryGroupEthPricePerToken);
             queryMapping[_groupEthId] = keccak256("groupETHPricePerToken");
         } else if (paramToSet == keccak256("groupETHPricePerToken")) {
             groupEthPricePerToken = parseInt(_result);
-            bytes32 _subsidyId = oraclize_query("URL", oraclizeQuerySubsidyRequired);
+            bytes32 _subsidyId = oraclize_query("URL", oQueries.oraclizeQuerySubsidyRequired);
             queryMapping[_subsidyId] = keccak256("subsidyRequired");
         } else if (paramToSet == keccak256("subsidyRequired")) {
             subsidyRequired = keccak256(_result) == keccak256("false") ? false : true;
