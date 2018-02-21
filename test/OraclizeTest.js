@@ -15,7 +15,7 @@ contract('Oraclize Test', function (accounts) {
             smartLog("Contract Address [" + await oraclizeContract.address + "]");
         });
 
-        it("should create new Pool Party", async () => {
+        it("should get pool config from Oraclize", async () => {
             smartLog("Start balance for Account0 [" + web3.fromWei(web3.eth.getBalance(accounts[3])) + "]", true);
             await oraclizeContract.update({from:accounts[3], value:web3.toWei("0.5", "ether")});
 

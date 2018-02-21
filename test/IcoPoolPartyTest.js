@@ -111,7 +111,7 @@ contract('Pool Party ICO', function (accounts) {
             const poolState = await icoPoolPartyContract.poolStatus();
             smartLog("Pool State is [" + poolState + "]");
             assert.equal(poolState, Status.WaterMarkReached, "Pool in incorrect status");
-            await icoPoolPartyContract.configurePoolTest(tokenSaleContract.address, dealTokenContract.address, accounts[7], {from: accounts[0]});
+            await icoPoolPartyContract.configurePoolTest(tokenSaleContract.address, dealTokenContract.address, accounts[7], "N/A", "claimToken()", "claimRefund()", true,  {from: accounts[0]});
             const poolDetails = await icoPoolPartyContract.getPoolDetails();
             smartLog("Foreground pool details [" + poolDetails + "]");
             const configDetails = await icoPoolPartyContract.getConfigDetails();

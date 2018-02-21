@@ -33,6 +33,7 @@ contract IcoPoolParty is Ownable, usingOraclize {
     uint256 public poolParticipants;
     uint256 public reviewPeriodStart;
     uint256 public balanceRemainingSnapshot;
+    uint256 tokenPrecision;
 
     address public poolPartyOwnerAddress;
     address public destinationAddress;
@@ -81,6 +82,8 @@ contract IcoPoolParty is Ownable, usingOraclize {
      * @dev Check the state of the watermark only if the current state is OPEN or WATERMARKREACHED
      */
     modifier assessWaterMark {
+        _;
+
         if (poolStatus == Status.Open || poolStatus == Status.WaterMarkReached) { //Only worry about the watermark before the ICO has configured the "sale"
             if (totalPoolInvestments < waterMark) { //If the pool total drops below watermark, change status to OPEN
                 poolStatus = Status.Open;
@@ -88,7 +91,6 @@ contract IcoPoolParty is Ownable, usingOraclize {
                 poolStatus = Status.WaterMarkReached;
             }
         }
-        _;
     }
 
     /**
@@ -208,21 +210,21 @@ contract IcoPoolParty is Ownable, usingOraclize {
     }
 
     /* TODO: REMOVE THIS FUNCTION WHEN DEPLOYING - ONLY USED TO SHORTEN TIME IT TAKES TO RUN TESTS */
-    function configurePoolTest(address _destination, address _token, address _owner) public {
+    function configurePoolTest(address _destination, address _token, address _owner, string _buyName, string _claimName, string _refundName, bool _subsidy) public {
         require(poolStatus == Status.WaterMarkReached);
 
         destinationAddress = _destination;
         tokenAddress = IErc20Token(_token);
         saleOwnerAddress = _owner;
-        buyFunctionName = "N/A";
+        buyFunctionName = _buyName;
         hashedBuyFunctionName = keccak256(buyFunctionName);
-        refundFunctionName = "claimRefund()";
+        refundFunctionName = _refundName;
         hashedRefundFunctionName = keccak256(refundFunctionName);
-        claimFunctionName = "claimToken()";
+        claimFunctionName = _claimName;
         hashedClaimFunctionName = keccak256(claimFunctionName);
         publicEthPricePerToken = 0.05 ether;
         groupEthPricePerToken = 0.04 ether;
-        subsidyRequired = true;
+        subsidyRequired = _subsidy;
     }
 
     /**
@@ -308,6 +310,9 @@ contract IcoPoolParty is Ownable, usingOraclize {
         expectedGroupTokenPrice = publicEthPricePerToken.sub(publicEthPricePerToken.mul(expectedGroupDiscountPercent).div(100));
         require (expectedGroupTokenPrice >= groupEthPricePerToken);
 
+        uint8 decimals = tokenAddress.decimals();
+        tokenPrecision = decimals == 0 ? 1 : power(10, decimals);
+
         actualGroupDiscountPercent = (publicEthPricePerToken.sub(groupEthPricePerToken)).mul(100).div(publicEthPricePerToken);
 
         poolStatus = Status.DueDiligence;
@@ -350,6 +355,7 @@ contract IcoPoolParty is Ownable, usingOraclize {
      */
     function releaseFundsToSale()
         public
+        timedTransition
         payable
     {
         require(poolStatus == Status.InReview);
@@ -407,7 +413,7 @@ contract IcoPoolParty is Ownable, usingOraclize {
         }
 
         totalTokensReceived = tokenAddress.balanceOf(address(this));
-        uint256 _expectedTokenBalance = totalPoolInvestments.div(groupEthPricePerToken);
+        uint256 _expectedTokenBalance = totalPoolInvestments.mul(tokenPrecision).div(groupEthPricePerToken);
         require(totalTokensReceived >= _expectedTokenBalance);
         ClaimedTokensFromIco(address(this), totalTokensReceived, now);
     }
@@ -524,8 +530,7 @@ contract IcoPoolParty is Ownable, usingOraclize {
         view
         returns (uint256)
     {
-        uint8 _tokenPrecision = tokenAddress.decimals();
-        return _tokenPrecision == 0 ? _amount.div(groupEthPricePerToken) : _amount.mul(_tokenPrecision).div(groupEthPricePerToken);
+        return _amount.mul(tokenPrecision).div(groupEthPricePerToken);
     }
 
     /**
@@ -537,5 +542,12 @@ contract IcoPoolParty is Ownable, usingOraclize {
         investors[investorList[_index]].arrayIndex = _index;
         delete investorList[investorList.length - 1];
         investorList.length--;
+    }
+
+    /**
+     * @dev Set precision based on decimal places in the token
+     */
+    function power(uint256 _a, uint256 _b) internal returns (uint256) {
+        return _a ** _b;
     }
 }
