@@ -37,8 +37,10 @@ contract IcoPoolPartyFactory is Ownable {
      * @param _icoUrl The official URL for the ICO. Must be unique. Confirmation from the ICO about this pool will be posted at this URL
      */
     function createNewPoolParty(string _icoUrl) public {
+        require(bytes(_icoUrl).length != 0); //Check if url is empty
+
         bytes32 _hashedIcoUrl = keccak256(_icoUrl);
-        require(hashedPoolAddress[_hashedIcoUrl] == 0x0);
+        require(hashedPoolAddress[_hashedIcoUrl] == 0x0); //Check if name already exists
 
         IcoPoolParty poolPartyContract = new IcoPoolParty(_icoUrl, waterMark, feePercentage, withdrawalFee, groupDiscountPercent, poolPartyOwnerAddress);
         poolPartyContract.transferOwnership(msg.sender);
@@ -59,6 +61,18 @@ contract IcoPoolPartyFactory is Ownable {
         returns(address)
     {
         return hashedPoolAddress[keccak256(_icoUrl)];
+    }
+
+    /**
+     * @dev Gets the size of the partyList array
+     * @return Size of array
+     */
+    function getPartyListSize()
+        public
+        view
+        returns(uint256)
+    {
+        return partyList.length;
     }
 
     /**

@@ -142,6 +142,7 @@ contract IcoPoolParty is Ownable, usingOraclize {
         expectedGroupDiscountPercent = _groupDiscountPercent;
         poolPartyOwnerAddress = _poolPartyOwnerAddress;
         poolParticipants = 0;
+        reviewPeriodStart = 0;
 
         OAR = OraclizeAddrResolverI(0x6f485C8BF6fc43eA212E93BBF8ce046C7f1cb475); //TODO: ONLY USED FOR LOCAL TESTING
         PoolCreated(icoUrl, now);
@@ -489,9 +490,9 @@ contract IcoPoolParty is Ownable, usingOraclize {
     function getPoolDetails()
         public
         view
-        returns (Status, uint256, uint256, uint256, uint256)
+        returns (Status, uint256, uint256, uint256, uint256, uint256)
     {
-        return (poolStatus, totalPoolInvestments, poolParticipants, withdrawalFee, waterMark);
+        return (poolStatus, totalPoolInvestments, poolParticipants, withdrawalFee, waterMark, reviewPeriodStart);
     }
 
     /**
