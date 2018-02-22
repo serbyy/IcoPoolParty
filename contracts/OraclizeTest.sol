@@ -26,19 +26,24 @@ contract OracalizeTest is usingOraclize {
     string icoUrl = "api.test.foreground.io";
 
     mapping(bytes32 => bytes32) queryMapping;
+    mapping(bytes32 => bytes) public parameterProof;
 
     OraclizeQueryBuilder.OraclizeQueries oQueries;
 
     function OracalizeTest() public {
         OAR = OraclizeAddrResolverI(0x6f485C8BF6fc43eA212E93BBF8ce046C7f1cb475);
+        //URL must be HTTPS in order to get a proof back
+        oraclize_setProof(proofType_TLSNotary | proofStorage_IPFS);
         oQueries.buildQueries(icoUrl);
     }
 
-    function __callback(bytes32 _qId, string _result) public {
+    function __callback(bytes32 _qId, string _result, bytes _proof) public {
         require (msg.sender == oraclize_cbAddress());
 
         bytes32 paramToSet = queryMapping[_qId];
         delete queryMapping[_qId];
+
+        parameterProof[paramToSet] = _proof;
 
         if(paramToSet == keccak256("destinationAddress")) {
             destinationAddress = parseAddr(_result);

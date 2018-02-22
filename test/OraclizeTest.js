@@ -1,16 +1,14 @@
 /* global artifacts */
-import expectThrow from "./helpers/expectThrow";
 
-let oraclize = artifacts.require('./OracalizeTest');
+const oraclize = artifacts.require('./OracalizeTest');
 let oraclizeContract;
 
 contract('Oraclize Test', function (accounts) {
 
-    describe.skip('Contribute to new pool', function () {
+    describe('Contribute to new pool', function () {
         this.slow(5000);
 
         before(async () => {
-            //oraclizeContract = await oraclize.new({from: accounts[2]});
             oraclizeContract = await oraclize.deployed();
             smartLog("Contract Address [" + await oraclizeContract.address + "]");
         });
@@ -19,53 +17,50 @@ contract('Oraclize Test', function (accounts) {
             smartLog("Start balance for Account0 [" + web3.fromWei(web3.eth.getBalance(accounts[3])) + "]", true);
             await oraclizeContract.update({from:accounts[3], value:web3.toWei("0.5", "ether")});
 
-            var loopCounter = 0;
-            while (loopCounter < 120) {
+            let loopCounter = 0;
+            while (loopCounter < 100) {
                 loopCounter++;
                 smartLog("Timer [" + loopCounter + "]", true);
                 await sleep(1000);
             }
-            var destinationAddress = await oraclizeContract.destinationAddress();
-            smartLog("Destination Address is [" + destinationAddress + "]", true);
-            //assert.equal(saleAddressVar, "0xe83dC1d9f5aA8223Acb090Be5c14877DF8C3F71b");
 
-            var tokenAddress = await oraclizeContract.tokenAddress();
-            smartLog("Token Address is [" + tokenAddress + "]", true);
-            //assert.equal(tokenAddress, "0xD67B30581733214F3e82F2b556be662BD977D812");
+            const destinationAddress = await oraclizeContract.destinationAddress();
+            smartLog("Destination address is [" + destinationAddress + "]", true);
+            smartLog("Destination address proof is [" + await oraclizeContract.parameterProof(web3.sha3("destinationAddress")) + "]", true);
 
+            const tokenAddress = await oraclizeContract.tokenAddress();
+            smartLog("Token address is [" + tokenAddress + "]", true);
+            smartLog("Token address proof is [" + await oraclizeContract.parameterProof(web3.sha3("tokenAddress")) + "]", true);
 
-            var saleOwnerAddress = await oraclizeContract.saleOwnerAddress();
+            const saleOwnerAddress = await oraclizeContract.saleOwnerAddress();
             smartLog("Sale Owner address is [" + saleOwnerAddress+ "]", true);
-            /*assert.equal(saleOwnerAddress, "0x2E05A304d3040f1399c8C20D2a9F659AE7521058");
-            await sleep(20000);*/
+            smartLog("Sale Owner address proof is [" + await oraclizeContract.parameterProof(web3.sha3("saleOwnerAddress")) + "]", true);
 
-            var buyFunction = await oraclizeContract.buyFunctionName();
+            const buyFunction = await oraclizeContract.buyFunctionName();
             smartLog("Buy Fn is [" + buyFunction + "]", true);
-            /*assert.equal(buyFunction, web3.sha3("puchaseTokens()"));
-            await sleep(20000);*/
+            smartLog("Buy Fn proof is [" + await oraclizeContract.parameterProof(web3.sha3("buyFunction")) + "]", true);
 
-            var refundFunction = await oraclizeContract.refundFunctionName();
+            const refundFunction = await oraclizeContract.refundFunctionName();
             smartLog("Refund fn is [" + refundFunction + "]", true);
-            /*assert.equal(refundFunction, web3.sha3("refundEther()"));
-            await sleep(20000);*/
+            smartLog("Refund fn proof is [" + await oraclizeContract.parameterProof(web3.sha3("refundFunction")) + "]", true);
 
-            var claimFunction = await oraclizeContract.claimFunctionName();
+            const claimFunction = await oraclizeContract.claimFunctionName();
             smartLog("Claim fn is [" + claimFunction + "]", true);
-            /*assert.equal(claimFunction, web3.sha3("claimTokens()"));
-            await sleep(20000);*/
+            smartLog("Claim fn proof is [" + await oraclizeContract.parameterProof(web3.sha3("claimFunction")) + "]", true);
 
-            var publicEthPrice = await oraclizeContract.publicEthPricePerToken();
+            const publicEthPrice = await oraclizeContract.publicEthPricePerToken();
             smartLog("Public ETH price [" + publicEthPrice + "]", true);
+            smartLog("Public ETH price proof is [" + await oraclizeContract.parameterProof(web3.sha3("publicETHPricePerToken")) + "]", true);
 
-            var groupEthPrice = await oraclizeContract.groupEthPricePerToken();
+            const groupEthPrice = await oraclizeContract.groupEthPricePerToken();
             smartLog("Group ETH price [" + groupEthPrice + "]", true);
+            smartLog("Group ETH price proof is [" + await oraclizeContract.parameterProof(web3.sha3("groupETHPricePerToken")) + "]", true);
 
-            var subsidyRequired = await oraclizeContract.subsidyRequired();
-            smartLog("Subsidy required [" + subsidyRequired + "]", true);
+            const subsidyRequired = await oraclizeContract.subsidyRequired();
+            smartLog("Subsidy required is [" + subsidyRequired + "]", true);
+            smartLog("Subsidy required proof is [" + await oraclizeContract.parameterProof(web3.sha3("subsidyRequired")) + "]", true);
 
             smartLog("Start balance for Account0 [" + web3.fromWei(web3.eth.getBalance(accounts[3])) + "]", true);
-            /*smartLog("Price is [" + price + "]", true);
-            smartLog("Id is [" + id + "]", true);*/
         });
 
     });
