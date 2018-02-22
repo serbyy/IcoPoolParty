@@ -7,6 +7,11 @@ module.exports = {
     // See <http://truffleframework.com/docs/advanced/configuration>
     // to customize your Truffle configuration!
     networks: {
+        development: {
+            host: "127.0.0.1",
+            port: 8545,
+            network_id: "*" // match any network
+        },
         mainnet: {
             provider: function () {
                 return new HDWalletProvider(process.env.MAINNET_MNEMONIC, "https://mainnet.infura.io/" + process.env.INFURA_APsI_KEY);
