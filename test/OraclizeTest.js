@@ -5,7 +5,7 @@ let oraclizeContract;
 
 contract('Oraclize Test', function (accounts) {
 
-    describe('Contribute to new pool', function () {
+    describe.skip('Contribute to new pool', function () {
         this.slow(5000);
 
         before(async () => {
