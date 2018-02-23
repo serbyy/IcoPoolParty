@@ -32,8 +32,6 @@ contract OracalizeTest is usingOraclize {
 
     function OracalizeTest() public {
         OAR = OraclizeAddrResolverI(0x6f485C8BF6fc43eA212E93BBF8ce046C7f1cb475);
-        //URL must be HTTPS in order to get a proof back
-        oraclize_setProof(proofType_TLSNotary | proofStorage_IPFS);
         oQueries.buildQueries(icoUrl);
     }
 
@@ -86,6 +84,8 @@ contract OracalizeTest is usingOraclize {
     }
 
     function update() public payable {
+        //URL must be HTTPS in order to get a proof back
+        oraclize_setProof(proofType_TLSNotary | proofStorage_IPFS);
         bytes32 _qId = oraclize_query("URL", oQueries.oraclizeQueryDestinationAddress);
         queryMapping[_qId] = keccak256("destinationAddress");
     }
