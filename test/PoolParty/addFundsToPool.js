@@ -237,6 +237,21 @@ contract('IcoPoolParty', (accounts) => {
             assert.equal(await icoPoolParty.poolParticipants(), 2, "Incorrect number of participants");
             assert.equal(await icoPoolParty.totalPoolInvestments(), web3.toWei("0.05"), "Incorrect total investment balance");
         });
+
+        it('should attempt to leave pool when balance is 0', async () => {
+            await icoPoolParty.addFundsToPool({from: _investor1, value: web3.toWei("0.2")});
+            assert.equal(await icoPoolParty.poolParticipants(), 1, "Incorrect number of participants");
+            assert.equal((icoPoolParty.investors(_investor2))[0], 0, "Investor should have 0 balance");
+            await expectThrow(icoPoolParty.leavePool({from: _investor2}));
+            assert.equal((icoPoolParty.investors(_investor1))[0], 0, "Investor should have 0 balance");
+            assert.equal(await icoPoolParty.poolParticipants(), 1, "Incorrect number of participants");
+        });
+    });
+
+    describe.skip('Function: configurePool', () => {
+        it('should configure sale using oraclize', async () => {
+        });
+
     });
 
     function sleep(_ms) {
