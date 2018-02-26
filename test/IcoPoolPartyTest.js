@@ -106,17 +106,21 @@ contract('Pool Party ICO', function (accounts) {
             smartLog("Foreground pool details [" + poolDetails + "]");
         });
 
-        it("should configure pool quickly", async () => {
+        it("should configure sale address quickly", async () => {
             await icoPoolPartyContract.addFundsToPool({from: accounts[2], value: web3.toWei("1", "ether")});
             const poolState = await icoPoolPartyContract.poolStatus();
             smartLog("Pool State is [" + poolState + "]");
             assert.equal(poolState, Status.WaterMarkReached, "Pool in incorrect status");
-            await icoPoolPartyContract.configurePoolTest(tokenSaleContract.address, dealTokenContract.address, accounts[7], "N/A", "claimToken()", "claimRefund()", true,  {from: accounts[0]});
+            await icoPoolPartyContract.setIcoOwnerTest(accounts[7], {from: accounts[0]});
             const poolDetails = await icoPoolPartyContract.getPoolDetails();
             smartLog("Foreground pool details [" + poolDetails + "]");
             const configDetails = await icoPoolPartyContract.getConfigDetails();
             smartLog("Foreground config details [" + configDetails + "]");
+        });
 
+        it("should configure pool details", async () => {
+            await icoPoolPartyContract.configurePool(tokenSaleContract.address, dealTokenContract.address, "N/A", "claimToken()", "claimRefund()", web3.toWei("0.05"), web3.toWei("0.04"), true, {from: accounts[7]});
+            assert.equal(await icoPoolPartyContract.buyFunctionName(), "N/A", "Wrong buyFunctionName");
         });
 
         it("should complete configuration", async () => {
@@ -202,6 +206,7 @@ contract('Pool Party ICO', function (accounts) {
             await tokenSaleContract.updateLatestSaleState({from: accounts[6]});
             smartLog("Sale State is (should be 5) [" + await tokenSaleContract.state() + "]");
             smartLog("Tokens received [" + await icoPoolPartyContract.totalTokensReceived() + "]");
+
             await icoPoolPartyContract.claimTokensFromIco({from: accounts[7]});
             smartLog("Tokens Received [" + await icoPoolPartyContract.totalTokensReceived() + "]");
             smartLog("Pool Party token balance [" + await dealTokenContract.balanceOf(icoPoolPartyContract.address) + "]");

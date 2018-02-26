@@ -10,7 +10,7 @@ contract GenericToken is MintableToken {
     /**
      * @dev - Empty constructor
      */
-    function GenericToken() {
+    function GenericToken() public {
 
     }
 }

@@ -17,14 +17,14 @@ contract('Generic Pool Party ICO', function (accounts) {
     describe('Generic Sale', function () {
         this.slow(5000);
 
-        const [deployer, investor1, investor2] = accounts;
+        const [deployer, investor1, investor2, investor3] = accounts;
 
         before(async () => {
             icoPoolPartyFactoryContract = await icoPoolPartyFactory.deployed();
             smartLog("Pool Party Factory Address [" + await icoPoolPartyFactoryContract.address + "]");
 
-            customSaleContract = await CustomSale.new(web3.toWei(0.05, "ether"));
-            genericTokenContract = genericToken.at(await customSaleContract.token());
+            genericTokenContract = await genericToken.deployed();
+            customSaleContract = await CustomSale.deployed();
         });
 
         it("should create new Pool Party", async () => {
@@ -86,11 +86,17 @@ contract('Generic Pool Party ICO', function (accounts) {
         it("should configure pool quickly", async () => {
             const poolState = await icoPoolPartyContract.poolStatus();
             assert.equal(poolState, Status.WaterMarkReached, "Pool in incorrect status");
-            await icoPoolPartyContract.configurePoolTest(customSaleContract.address, genericTokenContract.address, accounts[7], "buy()", "N/A", "refund()", true, {from: deployer});
+            await icoPoolPartyContract.setIcoOwnerTest(accounts[7], {from: accounts[0]});
             const poolDetails = await icoPoolPartyContract.getPoolDetails();
             smartLog("Pool details [" + poolDetails + "]");
             const configDetails = await icoPoolPartyContract.getConfigDetails();
             smartLog("Config details [" + configDetails + "]");
+        });
+
+        it("should configure pool details", async () => {
+            await icoPoolPartyContract.configurePool(customSaleContract.address, genericTokenContract.address, "buy()", "N/A", "refund()", web3.toWei("0.05"), web3.toWei("0.04"),true, {from: accounts[7]});
+            assert.equal(await icoPoolPartyContract.buyFunctionName(), "buy()", "Wrong buyFunctionName");
+            //await icoPoolPartyContract.addFundsToPool({from: investor3, value: web3.toWei("1")});
         });
 
         it("should complete configuration", async () => {
@@ -99,11 +105,26 @@ contract('Generic Pool Party ICO', function (accounts) {
             assert.equal(poolState, Status.DueDiligence, "Pool in incorrect status");
         });
 
+        /*it.skip("Should kick user", async () => {
+            //Expect throw because of wrong state
+            await expectThrow(icoPoolPartyContract.kickUser(investor3, {from: accounts[7]}));
+            await sleep(3000);
+            await icoPoolPartyContract.kickUser(investor3, {from: accounts[7]});
+            smartLog("Account 3 eth after being kicked [" + web3.fromWei((await icoPoolPartyContract.investors(investor3))[0]) + "]");
+            assert.equal((await icoPoolPartyContract.investors(investor3))[0], 0, "User account should be 0");
+            smartLog("Total investment amount [" + web3.fromWei(await icoPoolPartyContract.totalPoolInvestments()) + "]");
+            //assert.equal(await icoPoolPartyContract.totalPoolInvestments(), web3.toWei("11.03123123", "ether"), "Total investments should be 11 eth");
+        });*/
+
         it("Should release funds to ICO", async () => {
-            await sleep(3200);
+            await sleep(3500);
 
             smartLog("Sale Contract Balance BEFORE [" + web3.fromWei(web3.eth.getBalance(customSaleContract.address)) + "]");
             smartLog("Pool Contract Balance BEFORE [" + web3.fromWei(web3.eth.getBalance(icoPoolPartyContract.address)) + "]");
+            const poolState = await icoPoolPartyContract.poolStatus();
+            smartLog("Pool State should be 3 [" + poolState + "]");
+            smartLog("Total pool investments [" + web3.fromWei(await icoPoolPartyContract.totalPoolInvestments()) + "]");
+            //smartLog("Hashed Buy FN Name [" + await icoPoolPartyContract.hashedBuyFunctionName() + "]");
 
             const subsidy = await calculateSubsidy();
             smartLog("Subsidy is [" + web3.fromWei(subsidy) + "]");
