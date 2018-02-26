@@ -14,6 +14,8 @@ contract IcoPoolParty is Ownable, usingOraclize {
     /* Constants */
     uint256 constant VERSION = 1;
     uint256 constant DECIMAL_PRECISION = 10**18;
+    uint256 constant MIN_PURCHASE_AMOUNT = 0.01 ether;
+    uint256 constant MIN_ORACLIZE_FEE = 0.005 ether;
 
     string public icoUrl;
     string public buyFunctionName;
@@ -44,6 +46,9 @@ contract IcoPoolParty is Ownable, usingOraclize {
     bytes32 hashedBuyFunctionName;
     bytes32 hashedRefundFunctionName;
     bytes32 hashedClaimFunctionName;
+    bytes32 oraclizeQueryId;
+
+    bytes public oraclizeProof;
 
     OraclizeQueryBuilder.OraclizeQueries oQueries;
     IErc20Token public tokenAddress;
@@ -112,7 +117,7 @@ contract IcoPoolParty is Ownable, usingOraclize {
      * @dev Only allow sale owner to execute function
      */
     modifier onlySaleOwner {
-        require (msg.sender == saleOwnerAddress);
+        require (saleOwnerAddress != 0x0 && msg.sender == saleOwnerAddress);
         _;
     }
 
@@ -168,7 +173,7 @@ contract IcoPoolParty is Ownable, usingOraclize {
             poolStatus == Status.WaterMarkReached ||
             poolStatus == Status.DueDiligence
         );
-        require(msg.value >= 0.01 ether);
+        require(msg.value >= MIN_PURCHASE_AMOUNT);
 
         Investor storage _investor = investors[msg.sender];
 
@@ -210,35 +215,25 @@ contract IcoPoolParty is Ownable, usingOraclize {
         msg.sender.transfer(_amountToRefund);
     }
 
-    /* TODO: REMOVE THIS FUNCTION WHEN DEPLOYING - ONLY USED TO SHORTEN TIME IT TAKES TO RUN TESTS */
-    function configurePoolTest(address _destination, address _token, address _owner, string _buyName, string _claimName, string _refundName, bool _subsidy) public {
+    /* TODO: REMOVE THIS FUNCTION WHEN DEPLOYING - ONLY USED TO SKIP ORACLIZE CALL */
+    function setIcoOwnerTest(address _icoOwner) public payable {
         require(poolStatus == Status.WaterMarkReached);
-
-        destinationAddress = _destination;
-        tokenAddress = IErc20Token(_token);
-        saleOwnerAddress = _owner;
-        buyFunctionName = _buyName;
-        hashedBuyFunctionName = keccak256(buyFunctionName);
-        refundFunctionName = _refundName;
-        hashedRefundFunctionName = keccak256(refundFunctionName);
-        claimFunctionName = _claimName;
-        hashedClaimFunctionName = keccak256(claimFunctionName);
-        publicEthPricePerToken = 0.05 ether;
-        groupEthPricePerToken = 0.04 ether;
-        subsidyRequired = _subsidy;
+        saleOwnerAddress = _icoOwner;
     }
 
     /**
-     * @dev Configure sale by calling Oracle service to get config values
+     * @dev Oraclize call to get ICO owner from config page hosted on their domain
      */
-    function configurePool()
+    function setIcoOwner()
         public
         payable
     {
         require(poolStatus == Status.WaterMarkReached);
+        require(msg.value >= MIN_ORACLIZE_FEE);
         oQueries.buildQueries(icoUrl);
-        bytes32 _qId = oraclize_query("URL", oQueries.oraclizeQueryDestinationAddress);
-        queryMapping[_qId] = keccak256("destinationAddress");
+        //TODO: set appropriate Oraclize gas amount
+        oraclize_setProof(proofType_TLSNotary | proofStorage_IPFS);
+        oraclizeQueryId = oraclize_query("URL", oQueries.oraclizeQuerySaleOwnerAddress);
     }
 
     /**
@@ -246,61 +241,69 @@ contract IcoPoolParty is Ownable, usingOraclize {
      * @param _qId ID used to tie result back to the original query
      * @param _result Result of the oracle query
      */
-    function __callback(bytes32 _qId, string _result) public {
+    function __callback(bytes32 _qId, string _result, bytes _proof) public {
         require (msg.sender == oraclize_cbAddress());
+        oraclizeProof = _proof;
 
-        bytes32 paramToSet = queryMapping[_qId];
-        delete queryMapping[_qId];
-
-        if(paramToSet == keccak256("destinationAddress")) {
-            destinationAddress = parseAddr(_result);
-            bytes32 _tokenAddressId = oraclize_query("URL", oQueries.oraclizeQueryTokenAddress);
-            queryMapping[_tokenAddressId] = keccak256("tokenAddress");
-        } else if (paramToSet == keccak256("tokenAddress")) {
-            tokenAddress = IErc20Token(parseAddr(_result));
-            bytes32 _saleOwnerAddressId = oraclize_query("URL", oQueries.oraclizeQuerySaleOwnerAddress);
-            queryMapping[_saleOwnerAddressId] = keccak256("saleOwnerAddress");
-        } else if (paramToSet == keccak256("saleOwnerAddress")) {
+        if(oraclizeQueryId == _qId) {
             saleOwnerAddress = parseAddr(_result);
-            bytes32 _buyFunctionId = oraclize_query("URL", oQueries.oraclizeQueryBuyFunction);
-            queryMapping[_buyFunctionId] = keccak256("buyFunction");
-        } else if (paramToSet == keccak256("buyFunction")) {
-            buyFunctionName = _result;
-            hashedBuyFunctionName = keccak256(buyFunctionName);
-            bytes32 _refundFunctionId = oraclize_query("URL", oQueries.oraclizeQueryRefundFunction);
-            queryMapping[_refundFunctionId] = keccak256("refundFunction");
-        } else if (paramToSet == keccak256("refundFunction")) {
-            refundFunctionName = _result;
-            hashedRefundFunctionName = keccak256(refundFunctionName);
-            bytes32 _claimFunctionId = oraclize_query("URL", oQueries.oraclizeQueryClaimFunction);
-            queryMapping[_claimFunctionId] = keccak256("claimFunction");
-        } else if (paramToSet == keccak256("claimFunction")) {
-            claimFunctionName = _result;
-            hashedClaimFunctionName = keccak256(claimFunctionName);
-            bytes32 _publicEthId = oraclize_query("URL", oQueries.oraclizeQueryPublicEthPricePerToken);
-            queryMapping[_publicEthId] = keccak256("publicETHPricePerToken");
-        } else if (paramToSet == keccak256("publicETHPricePerToken")) {
-            publicEthPricePerToken = parseInt(_result);
-            bytes32 _groupEthId = oraclize_query("URL", oQueries.oraclizeQueryGroupEthPricePerToken);
-            queryMapping[_groupEthId] = keccak256("groupETHPricePerToken");
-        } else if (paramToSet == keccak256("groupETHPricePerToken")) {
-            groupEthPricePerToken = parseInt(_result);
-            bytes32 _subsidyId = oraclize_query("URL", oQueries.oraclizeQuerySubsidyRequired);
-            queryMapping[_subsidyId] = keccak256("subsidyRequired");
-        } else if (paramToSet == keccak256("subsidyRequired")) {
-            subsidyRequired = keccak256(_result) == keccak256("false") ? false : true;
+            oraclizeQueryId = 0x0;
+            //TODO: add event
         }
     }
 
     /**
-     * @dev Complete the configuration and start the 7 day timer for participants to review the configured parameters
+     * @dev Configure sale parameters - only sale owner can do this
+     * @param _destination Address where the pool funds will be sent once released to the ICO
+     * @param _tokenAddress Address of the token being bought (must be an ERC20 token)
+     * @param _buyFnName Name of the buy function in the "sale" contract
+     * @param _claimFnName Name of the claim tokens function in the "sale" contract
+     * @param _refundFnName Name of the claim refund function in the "sale" contract
+     * @param _publicTokenPrice Price of the token if bought directly from the ICO
+     * @param _groupTokenPrice Discounted price of the token for participants in the pool
+     * @param _subsidy Whether a subsidy amount is due by the ICO holder when releasing the funds
      */
-    function completeConfiguration() public {
-        require(msg.sender == saleOwnerAddress);
+    function configurePool(
+        address _destination,
+        address _tokenAddress,
+        string _buyFnName,
+        string _claimFnName,
+        string _refundFnName,
+        uint256 _publicTokenPrice,
+        uint256 _groupTokenPrice,
+        bool _subsidy
+    )
+        public
+        onlySaleOwner
+    {
+        require(poolStatus == Status.WaterMarkReached);
+
+        //TODO: handle buy and claim function names being empty
+        destinationAddress = _destination;
+        tokenAddress = IErc20Token(_tokenAddress);
+        buyFunctionName = _buyFnName;
+        hashedBuyFunctionName = keccak256(buyFunctionName);
+        refundFunctionName = _refundFnName;
+        hashedRefundFunctionName = keccak256(refundFunctionName);
+        claimFunctionName = _claimFnName;
+        hashedClaimFunctionName = keccak256(claimFunctionName);
+        publicEthPricePerToken = _publicTokenPrice;
+        groupEthPricePerToken = _groupTokenPrice;
+        subsidyRequired = _subsidy;
+        //TODO: add event
+    }
+
+
+    /**
+     * @dev Complete the configuration and start the 7 day timer for participants to review the configured parameters - only sale owner can do this
+     */
+    function completeConfiguration()
+        public
+        onlySaleOwner
+    {
         require(
             destinationAddress != 0x0 &&
             address(tokenAddress) != 0x0 &&
-            saleOwnerAddress != 0x0 &&
             hashedBuyFunctionName != 0x0 &&
             hashedRefundFunctionName != 0x0 &&
             hashedClaimFunctionName != 0x0 &&
