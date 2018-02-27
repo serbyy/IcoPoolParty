@@ -6,7 +6,7 @@ import "./libraries/OraclizeQueryBuilder.sol";
 contract OracalizeTest is usingOraclize {
     using OraclizeQueryBuilder for OraclizeQueryBuilder.OraclizeQueries;
 
-    address public saleOwnerAddress;
+    address public authorizedConfigurationAddress;
     string icoUrl = "api.test.foreground.io";
     bytes32 oraclizeQueryId;
     bytes public oraclizeProof;
@@ -23,7 +23,7 @@ contract OracalizeTest is usingOraclize {
         oraclizeProof = _proof;
 
         if (oraclizeQueryId == _qId) {
-            saleOwnerAddress = parseAddr(_result);
+            authorizedConfigurationAddress = parseAddr(_result);
             oraclizeQueryId = 0x0;
         }
     }
@@ -31,6 +31,6 @@ contract OracalizeTest is usingOraclize {
     function update() public payable {
         //URL must be HTTPS in order to get a proof back
         oraclize_setProof(proofType_TLSNotary | proofStorage_IPFS);
-        oraclizeQueryId = oraclize_query("URL", oQueries.oraclizeQuerySaleOwnerAddress);
+        oraclizeQueryId = oraclize_query("URL", oQueries.oraclizeQueryAuthorizedConfigAddress);
     }
 }

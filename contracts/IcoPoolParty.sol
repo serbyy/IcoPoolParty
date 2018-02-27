@@ -39,7 +39,7 @@ contract IcoPoolParty is Ownable, usingOraclize {
 
     address public poolPartyOwnerAddress;
     address public destinationAddress;
-    address public saleOwnerAddress;
+    address public authorizedConfigurationAddress;
 
     bool public subsidyRequired;
 
@@ -78,7 +78,9 @@ contract IcoPoolParty is Ownable, usingOraclize {
     event FundsReleasedToIco(uint256 totalInvestmentAmount, uint256 subsidyAmount, uint256 feeAmount,  address tokenSaleAddress, uint256 date);
     event TokensClaimed(address indexed investor, uint256 investmentAmount, uint256 tokensTransferred, uint256 date);
     event InvestorEjected(address indexed investor, uint256 fee, uint256 amount, uint256 date);
-    event RefundClaimer(address indexed investor, uint256 amount, uint256 date);
+    event RefundClaimed(address indexed investor, uint256 amount, uint256 date);
+    event AuthorizedAddressConfigured(address initiator, uint256 date);
+    event PoolConfigured(address initiator, address destination, address tokenAddress, string buyFnName, string claimFnName, string refundFnName, uint256 publicTokenPrice, uint256 groupTokenPrice, bool subsidy, uint256 date);
 
     event ClaimedTokensFromIco(address indexed owner, uint256 tokenBalance, uint256 date);
     event ClaimedRefundFromIco(address indexed owner, address initiator, uint256 date);
@@ -116,8 +118,8 @@ contract IcoPoolParty is Ownable, usingOraclize {
     /**
      * @dev Only allow sale owner to execute function
      */
-    modifier onlySaleOwner {
-        require (saleOwnerAddress != 0x0 && msg.sender == saleOwnerAddress);
+    modifier onlyAuthorizedAddress {
+        require (authorizedConfigurationAddress != 0x0 && msg.sender == authorizedConfigurationAddress);
         _;
     }
 
@@ -216,24 +218,24 @@ contract IcoPoolParty is Ownable, usingOraclize {
     }
 
     /* TODO: REMOVE THIS FUNCTION WHEN DEPLOYING - ONLY USED TO SKIP ORACLIZE CALL */
-    function setIcoOwnerTest(address _icoOwner) public payable {
+    function setAuthorizedConfigurationAddressTest(address _authorizedAddress) public payable {
         require(poolStatus == Status.WaterMarkReached);
-        saleOwnerAddress = _icoOwner;
+        require(msg.value >= MIN_ORACLIZE_FEE);
+        authorizedConfigurationAddress = _authorizedAddress;
     }
 
     /**
      * @dev Oraclize call to get ICO owner from config page hosted on their domain
      */
-    function setIcoOwner()
+    function setAuthorizedConfigurationAddress()
         public
         payable
     {
         require(poolStatus == Status.WaterMarkReached);
         require(msg.value >= MIN_ORACLIZE_FEE);
         oQueries.buildQueries(icoUrl);
-        //TODO: set appropriate Oraclize gas amount
         oraclize_setProof(proofType_TLSNotary | proofStorage_IPFS);
-        oraclizeQueryId = oraclize_query("URL", oQueries.oraclizeQuerySaleOwnerAddress);
+        oraclizeQueryId = oraclize_query("URL", oQueries.oraclizeQueryAuthorizedConfigAddress);
     }
 
     /**
@@ -246,9 +248,10 @@ contract IcoPoolParty is Ownable, usingOraclize {
         oraclizeProof = _proof;
 
         if(oraclizeQueryId == _qId) {
-            saleOwnerAddress = parseAddr(_result);
+            authorizedConfigurationAddress = parseAddr(_result);
             oraclizeQueryId = 0x0;
-            //TODO: add event
+
+            AuthorizedAddressConfigured(msg.sender, now);
         }
     }
 
@@ -274,11 +277,19 @@ contract IcoPoolParty is Ownable, usingOraclize {
         bool _subsidy
     )
         public
-        onlySaleOwner
+        onlyAuthorizedAddress
     {
         require(poolStatus == Status.WaterMarkReached);
+        require(
+            _destination != 0x0 &&
+            _tokenAddress != 0x0 &&
+            bytes(_buyFnName).length > 0 &&
+            bytes(_refundFnName).length > 0 &&
+            bytes(_claimFnName).length > 0 &&
+            _publicTokenPrice > 0 &&
+            _groupTokenPrice > 0
+        );
 
-        //TODO: handle buy and claim function names being empty
         destinationAddress = _destination;
         tokenAddress = IErc20Token(_tokenAddress);
         buyFunctionName = _buyFnName;
@@ -290,7 +301,8 @@ contract IcoPoolParty is Ownable, usingOraclize {
         publicEthPricePerToken = _publicTokenPrice;
         groupEthPricePerToken = _groupTokenPrice;
         subsidyRequired = _subsidy;
-        //TODO: add event
+
+        PoolConfigured(msg.sender, _destination, _tokenAddress, _buyFnName, _claimFnName, _refundFnName, _publicTokenPrice, _groupTokenPrice, _subsidy, now);
     }
 
 
@@ -299,7 +311,7 @@ contract IcoPoolParty is Ownable, usingOraclize {
      */
     function completeConfiguration()
         public
-        onlySaleOwner
+        onlyAuthorizedAddress
     {
         require(
             destinationAddress != 0x0 &&
@@ -331,7 +343,7 @@ contract IcoPoolParty is Ownable, usingOraclize {
     function kickUser(address _userToKick)
         public
         timedTransition
-        onlySaleOwner
+        onlyAuthorizedAddress
     {
         require(poolStatus == Status.InReview);
 
@@ -363,11 +375,11 @@ contract IcoPoolParty is Ownable, usingOraclize {
         payable
     {
         require(poolStatus == Status.InReview);
-        require(msg.sender == saleOwnerAddress);
+        require(msg.sender == authorizedConfigurationAddress);
 
         poolStatus = Status.Claim;
 
-        //The fee must be paid by the caller of this function - which is saleOwnerAddress
+        //The fee must be paid by the caller of this function - which is authorizedConfigurationAddress
         uint256 _feeAmount = totalPoolInvestments.mul(feePercentage).div(100);
         uint256 _amountToRelease = 0;
         uint256 _actualSubsidy = 0;
@@ -484,7 +496,7 @@ contract IcoPoolParty is Ownable, usingOraclize {
         view
         returns (address, address, address, uint256, uint256, bool, string, string, string)
     {
-        return (destinationAddress, tokenAddress, saleOwnerAddress, publicEthPricePerToken, groupEthPricePerToken, subsidyRequired, buyFunctionName, refundFunctionName, claimFunctionName);
+        return (destinationAddress, tokenAddress, authorizedConfigurationAddress, publicEthPricePerToken, groupEthPricePerToken, subsidyRequired, buyFunctionName, refundFunctionName, claimFunctionName);
     }
 
     /**

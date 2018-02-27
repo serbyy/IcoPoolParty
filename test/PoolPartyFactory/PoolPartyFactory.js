@@ -175,13 +175,13 @@ contract('IcoPoolPartyFactory Contract', (accounts) => {
             assert.notEqual(await icoPoolPartyFactory.waterMark(), _deployer, "PP owner did not change");
         });
 
-        it('should attempt to set a new Poop Party owner with non owner account', async () => {
+        it('should attempt to set a new pool Party owner with non owner account', async () => {
             await expectThrow(icoPoolPartyFactory.setPoolPartyOwnerAddress(_newOwner, {from: _creator1}));
             assert.notEqual(await icoPoolPartyFactory.poolPartyOwnerAddress(), _newOwner, "PP owner changed when it shouldn't have");
             assert.equal(await icoPoolPartyFactory.poolPartyOwnerAddress(), _deployer, "PP owner changed when it shouldn't have");
         });
 
-        it('should attempt to set a new Poop Party owner to blank address', async () => {
+        it('should attempt to set a new pool Party owner to blank address', async () => {
             await expectThrow(icoPoolPartyFactory.setPoolPartyOwnerAddress(ZERO_ADDRESS, {from: _deployer}));
             assert.notEqual(await icoPoolPartyFactory.poolPartyOwnerAddress(), ZERO_ADDRESS, "PP owner changed when it shouldn't have");
             assert.equal(await icoPoolPartyFactory.poolPartyOwnerAddress(), _deployer, "PP owner changed when it shouldn't have");

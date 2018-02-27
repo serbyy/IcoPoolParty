@@ -111,7 +111,7 @@ contract('Pool Party ICO', function (accounts) {
             const poolState = await icoPoolPartyContract.poolStatus();
             smartLog("Pool State is [" + poolState + "]");
             assert.equal(poolState, Status.WaterMarkReached, "Pool in incorrect status");
-            await icoPoolPartyContract.setIcoOwnerTest(accounts[7], {from: accounts[0]});
+            await icoPoolPartyContract.setAuthorizedConfigurationAddressTest(accounts[7], {from: accounts[0], value: web3.toWei("0.005")});
             const poolDetails = await icoPoolPartyContract.getPoolDetails();
             smartLog("Foreground pool details [" + poolDetails + "]");
             const configDetails = await icoPoolPartyContract.getConfigDetails();
