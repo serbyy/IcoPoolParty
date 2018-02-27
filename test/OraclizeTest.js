@@ -24,8 +24,8 @@ contract('Oraclize Test', function (accounts) {
                 await sleep(1000);
             }
 
-            const saleOwnerAddress = await oraclizeContract.saleOwnerAddress();
-            smartLog("Sale Owner address is [" + saleOwnerAddress+ "]", true);
+            const authorizedConfigurationAddress = await oraclizeContract.authorizedConfigurationAddress();
+            smartLog("Sale Owner address is [" + authorizedConfigurationAddress + "]", true);
             smartLog("Sale Owner address proof is [" + await oraclizeContract.oraclizeProof() + "]", true);
 
             smartLog("Start balance for Account0 [" + web3.fromWei(web3.eth.getBalance(accounts[3])) + "]", true);
