@@ -24,7 +24,8 @@ contract('Pool Party ICO', function (accounts) {
             await icoPoolPartyFactoryContract.setWaterMark(web3.toWei("10", "ether"), {from: accounts[0]});
             smartLog("New watermark [" + await icoPoolPartyFactoryContract.waterMark() + "]");
 
-            tokenSaleContract = await foregroundTokenSale.new(400, 100, web3.toWei(0.05, "ether"), accounts[1]);
+//            tokenSaleContract = await foregroundTokenSale.new(400, 100, web3.toWei(0.05, "ether"), accounts[1]);
+            tokenSaleContract = await foregroundTokenSale.new(400, 1, web3.toWei(0.05, "ether"), accounts[1]);
             let tokenSaleStartBlockNumber = web3.eth.blockNumber + 1;
             let tokenSaleEndBlockNumber = tokenSaleStartBlockNumber + 500;
             await tokenSaleContract.configureSale(tokenSaleStartBlockNumber, tokenSaleEndBlockNumber, accounts[9], 50, accounts[9], accounts[9], accounts[9], accounts[9], {from: accounts[0]});
