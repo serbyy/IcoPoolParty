@@ -7,6 +7,8 @@ contract CustomSale is Ownable {
     GenericToken public token;
     uint256 tokenPrice;
 
+    function () payable {}
+
     function CustomSale(uint256 _tokenPrice, address _token) public {
         tokenPrice = _tokenPrice;
         token = GenericToken(_token);
