@@ -83,7 +83,8 @@ contract IcoPoolParty is Ownable, usingOraclize {
     event PoolConfigured(address initiator, address destination, address tokenAddress, string buyFnName, string claimFnName, string refundFnName, uint256 publicTokenPrice, uint256 groupTokenPrice, bool subsidy, uint256 date);
 
     event ClaimedTokensFromIco(address indexed owner, uint256 tokenBalance, uint256 date);
-    event ClaimedRefundFromIco(address indexed owner, address initiator, uint256 date);
+    event ClaimedRefundFromIco(address indexed owner, address initiator, uint256 refundedAmount, uint256 date);
+    event NoRefundFromIco(address indexed owner, address initiator, uint256 date);
 
     /**
      * @dev Check the state of the watermark only if the current state is OPEN or WATERMARKREACHED
@@ -372,10 +373,10 @@ contract IcoPoolParty is Ownable, usingOraclize {
     function releaseFundsToSale()
         public
         timedTransition
+        onlyAuthorizedAddress
         payable
     {
         require(poolStatus == Status.InReview);
-        require(msg.sender == authorizedConfigurationAddress);
 
         poolStatus = Status.Claim;
 
@@ -390,7 +391,7 @@ contract IcoPoolParty is Ownable, usingOraclize {
             _actualSubsidy = _amountToRelease.sub(totalPoolInvestments);
             require(msg.value >= _actualSubsidy.add(_feeAmount)); //Amount sent to the function should be the subsidy amount + the fee
         } else { //No subsidy, only fee has to be paid
-            require(msg.value == _feeAmount);
+            require(msg.value >= _feeAmount);
             _amountToRelease = totalPoolInvestments;
         }
 
@@ -441,13 +442,15 @@ contract IcoPoolParty is Ownable, usingOraclize {
     function claimRefundFromIco() public {
         require(poolStatus == Status.Claim);
         require(totalTokensReceived == 0);
-        //TODO: Must prevent this from being called if claimTokensFromIco should be called instead
-        //TODO: Need a way to stop this function from being called again
 
         require(destinationAddress.call(bytes4(hashedRefundFunctionName)));
-        balanceRemainingSnapshot = this.balance;
 
-        ClaimedRefundFromIco(address(this), msg.sender, now);
+        if (this.balance >= totalPoolInvestments) {
+            balanceRemainingSnapshot = this.balance;
+            ClaimedRefundFromIco(address(this), msg.sender, balanceRemainingSnapshot, now);
+        } else {
+            NoRefundFromIco(address(this), msg.sender, now);
+        }
     }
 
     /**
