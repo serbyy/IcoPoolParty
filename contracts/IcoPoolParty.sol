@@ -35,7 +35,7 @@ contract IcoPoolParty is Ownable, usingOraclize {
     uint256 public poolParticipants;
     uint256 public reviewPeriodStart;
     uint256 public balanceRemainingSnapshot;
-    uint256 tokenPrecision;
+    uint256 public tokenPrecision;
 
     address public poolPartyOwnerAddress;
     address public destinationAddress;
@@ -61,7 +61,7 @@ contract IcoPoolParty is Ownable, usingOraclize {
 
     struct Investor {
         uint256 investmentAmount;
-        uint256 snapshotInvestmentAmount;
+        uint256 tokensDue;
         uint256 percentageContribution;
         uint256 arrayIndex;
         bool canClaimRefund;
@@ -464,13 +464,11 @@ contract IcoPoolParty is Ownable, usingOraclize {
         uint256 _totalContribution = _investor.investmentAmount;
         _investor.investmentAmount = 0;
         if (_investor.percentageContribution == 0) {
-            setContributionPercentage(msg.sender, _totalContribution);
+            calculateDues(msg.sender, _totalContribution);
         }
 
-        uint256 _tokensDue = calculateTokensDue(msg.sender, _totalContribution);
-
-        TokensClaimed(msg.sender, _totalContribution, _tokensDue, now);
-        tokenAddress.transfer(msg.sender, _tokensDue);
+        TokensClaimed(msg.sender, _totalContribution, _investor.tokensDue, now);
+        tokenAddress.transfer(msg.sender, _investor.tokensDue);
     }
 
     /**
@@ -483,7 +481,7 @@ contract IcoPoolParty is Ownable, usingOraclize {
 
         _investor.canClaimRefund = false;
         if (_investor.investmentAmount != 0) { //If investmentAmount == 0, then refundAmount has already been set
-            setContributionPercentage(msg.sender, _investor.investmentAmount);
+            calculateDues(msg.sender, _investor.investmentAmount);
         }
 
         msg.sender.transfer(_investor.refundAmount);
@@ -520,7 +518,7 @@ contract IcoPoolParty is Ownable, usingOraclize {
         view
         returns (uint256)
     {
-        return totalTokensReceived > 0 ? calculateTokensDue(_user, investors[_user].investmentAmount) : 0;
+        return totalTokensReceived > 0 ? investors[_user].investmentAmount.mul(tokenPrecision).div(groupEthPricePerToken) : 0;
     }
 
     /**********************/
@@ -531,28 +529,12 @@ contract IcoPoolParty is Ownable, usingOraclize {
      * @param _user Participant to calculate for
      * @param _investmentAmount Investment amount used in the calculation
      */
-    function setContributionPercentage(address _user, uint _investmentAmount) internal {
+    function calculateDues(address _user, uint _investmentAmount) internal {
         Investor storage _investor = investors[_user];
-        _investor.percentageContribution = _investmentAmount.mul(100).mul(DECIMAL_PRECISION).div(totalPoolInvestments);
+        uint256 _percentage = _investmentAmount.mul(100).mul(DECIMAL_PRECISION).div(totalPoolInvestments);
+        _investor.percentageContribution = _percentage;
         _investor.refundAmount = balanceRemainingSnapshot.mul(_investor.percentageContribution).div(100).div(DECIMAL_PRECISION);
-    }
-
-    /**
-     * @dev Get the amount of tokens a participant has due to them
-     * @param _user Participant to calculate for
-     * @param _amount Participants investment amount
-     */
-    function calculateTokensDue(address _user, uint256 _amount)
-        internal
-        view
-        returns (uint256)
-    {
-        Investor storage _investor = investors[_user];
-        if (_investor.percentageContribution == 0) {
-            setContributionPercentage(msg.sender, _amount);
-        }
-
-        return totalTokensReceived.mul(_investor.percentageContribution).div(100).div(DECIMAL_PRECISION);
+        _investor.tokensDue = totalTokensReceived.mul(_percentage).div(100).div(DECIMAL_PRECISION);
     }
 
     /**

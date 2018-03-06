@@ -228,7 +228,7 @@ contract('Generic Pool Party ICO - Release Funds', function (accounts) {
             
             smartLog("Adding Ether minimum....");
             //Add a balance that is indivisible by the number of participants (very small wei value)            
-            await icoPoolPartyContract.addFundsToPool({from: investor3, value: web3.toWei("0.01", "ether") + Number(1)});            
+            await icoPoolPartyContract.addFundsToPool({from: investor3, value: web3.toWei("0.01", "ether")});
 
             //await ConfigurePoolDetails();
             //Configure Pool Details
