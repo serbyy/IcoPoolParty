@@ -549,7 +549,7 @@ contract IcoPoolParty is Ownable, usingOraclize {
     {
         Investor storage _investor = investors[_user];
         if (_investor.percentageContribution == 0) {
-            setContributionPercentage(msg.sender, _investor.investmentAmount);
+            setContributionPercentage(msg.sender, _amount);
         }
 
         return totalTokensReceived.mul(_investor.percentageContribution).div(100).div(DECIMAL_PRECISION);
