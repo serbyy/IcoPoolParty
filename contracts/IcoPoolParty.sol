@@ -421,7 +421,7 @@ contract IcoPoolParty is Ownable, usingOraclize {
      * @dev If tokens are not minted by ICO at time of purchase, they need to be claimed once the sale is over. Tokens are released to this contract. actualGroupTokenPrice is calculated when the
      *      configuration is completed by the ICO
      */
-    function claimTokensFromIco() public {
+    function claimTokensFromIco() public onlyAuthorizedAddress {
         require(poolStatus == Status.Claim);
         require(totalTokensReceived == 0);
 
@@ -430,8 +430,6 @@ contract IcoPoolParty is Ownable, usingOraclize {
         }
 
         totalTokensReceived = tokenAddress.balanceOf(address(this));
-        uint256 _expectedTokenBalance = totalPoolInvestments.mul(tokenPrecision).div(groupEthPricePerToken);
-        require(totalTokensReceived >= _expectedTokenBalance);
         ClaimedTokensFromIco(address(this), totalTokensReceived, now);
     }
 
@@ -439,7 +437,7 @@ contract IcoPoolParty is Ownable, usingOraclize {
 	 * INTEGRATION POINT WITH SALE CONTRACT
 	 * @dev In the case that the token sale is unsuccessful, withdraw funds from Sale Contract back to this contract in order for investors to claim their refund
      */
-    function claimRefundFromIco() public {
+    function claimRefundFromIco() public onlyAuthorizedAddress {
         require(poolStatus == Status.Claim);
         require(totalTokensReceived == 0);
 
@@ -549,7 +547,12 @@ contract IcoPoolParty is Ownable, usingOraclize {
         view
         returns (uint256)
     {
-        return _amount.mul(tokenPrecision).div(groupEthPricePerToken);
+        Investor storage _investor = investors[_user];
+        if (_investor.percentageContribution == 0) {
+            setContributionPercentage(msg.sender, _investor.investmentAmount);
+        }
+
+        return totalTokensReceived.mul(_investor.percentageContribution).div(100).div(DECIMAL_PRECISION);
     }
 
     /**
