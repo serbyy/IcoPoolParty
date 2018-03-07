@@ -460,7 +460,7 @@ contract('Generic Pool Party ICO - Release Funds', function (accounts) {
         smartLog("totalPoolInvestments [" + web3.fromWei(_totalPoolInvestments) + "]");
 
         let _groupContPercent = 100 - _actualGroupDiscountPercent;
-        let _amountToRelease = _totalPoolInvestments / _groupContPercent * 100;
+        let _amountToRelease = _totalPoolInvestments * 100 / _groupContPercent;
 
         smartLog("amountToRelease [" + web3.fromWei(_amountToRelease) + "]");
 
