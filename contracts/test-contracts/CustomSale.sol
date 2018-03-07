@@ -6,6 +6,7 @@ import "./GenericToken.sol";
 contract CustomSale is Ownable {
     GenericToken public token;
     uint256 tokenPrice;
+    uint256 amountSentToSale;
 
     function () payable {}
 
@@ -19,8 +20,13 @@ contract CustomSale is Ownable {
         mintTokens(msg.sender, tokensToSend);
     }
 
-    function refund() public {
+    function buyWithIntentToRefund() public payable {
+        //Does not mint tokens -- mimics a sale that eventually doesn't reach its goal
+        amountSentToSale = msg.value;
+    }
 
+    function refund() public {
+        msg.sender.transfer(amountSentToSale);
     }
 
     function mintTokens(address _recipient, uint256 _amount) public {
