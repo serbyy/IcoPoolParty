@@ -378,8 +378,6 @@ contract IcoPoolParty is Ownable, usingOraclize {
     {
         require(poolStatus == Status.InReview);
 
-        poolStatus = Status.Claim;
-
         //The fee must be paid by the caller of this function - which is authorizedConfigurationAddress
         uint256 _feeAmount = totalPoolInvestments.mul(feePercentage).div(100);
         uint256 _amountToRelease = 0;
@@ -421,8 +419,11 @@ contract IcoPoolParty is Ownable, usingOraclize {
      * @dev If tokens are not minted by ICO at time of purchase, they need to be claimed once the sale is over. Tokens are released to this contract. actualGroupTokenPrice is calculated when the
      *      configuration is completed by the ICO
      */
-    function claimTokensFromIco() public onlyAuthorizedAddress {
-        require(poolStatus == Status.Claim);
+    function claimTokensFromIco()
+        public
+        onlyAuthorizedAddress
+    {
+        require(poolStatus == Status.InReview);
         require(totalTokensReceived == 0);
 
         if (hashedClaimFunctionName != keccak256("N/A")) {
@@ -430,20 +431,28 @@ contract IcoPoolParty is Ownable, usingOraclize {
         }
 
         totalTokensReceived = tokenAddress.balanceOf(address(this));
-        ClaimedTokensFromIco(address(this), totalTokensReceived, now);
+        if (totalTokensReceived > 0) {
+            poolStatus = Status.Claim;
+            ClaimedTokensFromIco(address(this), totalTokensReceived, now);
+        }
+
     }
 
     /*
 	 * INTEGRATION POINT WITH SALE CONTRACT
 	 * @dev In the case that the token sale is unsuccessful, withdraw funds from Sale Contract back to this contract in order for investors to claim their refund
      */
-    function claimRefundFromIco() public onlyAuthorizedAddress {
-        require(poolStatus == Status.Claim);
+    function claimRefundFromIco()
+        public
+        onlyAuthorizedAddress
+    {
+        require(poolStatus == Status.InReview);
         require(totalTokensReceived == 0);
 
         require(destinationAddress.call(bytes4(hashedRefundFunctionName)));
 
         if (this.balance >= totalPoolInvestments) {
+            poolStatus = Status.Claim;
             balanceRemainingSnapshot = this.balance;
             ClaimedRefundFromIco(address(this), msg.sender, balanceRemainingSnapshot, now);
         } else {

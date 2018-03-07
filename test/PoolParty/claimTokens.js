@@ -5,8 +5,8 @@ const poolPartyArtifact = artifacts.require('./IcoPoolParty');
 const genericTokenArtifact = artifacts.require('./test-contracts/GenericToken');
 const customSaleArtifact = artifacts.require('./test-contracts/CustomSale');
 
-let foregroundTokenSaleArtifact = artifacts.require('./ForegroundTokenSale');
-let dealTokenArtifact = artifacts.require('./DealToken');
+const foregroundTokenSaleArtifact = artifacts.require('./ForegroundTokenSale');
+const dealTokenArtifact = artifacts.require('./DealToken');
 
 let foregroundTokenSale;
 let dealToken;
@@ -109,8 +109,9 @@ contract('IcoPoolParty', (accounts) => {
             const subsidy = await calculateSubsidy();
             const fee = await calculateFee();
             await icoPoolParty.releaseFundsToSale({from: _saleOwner, gas: 400000, value: (subsidy + fee)});
-            assert.equal(await icoPoolParty.poolStatus(), Status.Claim, "Pool in incorrect status");
+            assert.equal(await icoPoolParty.poolStatus(), Status.InReview, "Pool in incorrect status");
             await icoPoolParty.claimTokensFromIco({from: _saleOwner});
+            assert.equal(await icoPoolParty.poolStatus(), Status.Claim, "Pool in incorrect status");
         });
 
         it('should claim tokens from pool', async () => {

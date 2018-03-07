@@ -44,7 +44,7 @@ contract('IcoPoolParty', (accounts) => {
         });
     });
 
-    describe('Function: releaseFundsToSale() - Generic Sale: Subsidized', () => {
+    describe('Function: releaseFundsToSale() - Generic Sale: Subsidized with buy and claim function. ', () => {
         beforeEach(async () => {
             await icoPoolParty.configurePool(customSale.address, genericToken.address, "buy()", "claim()", "refund()", web3.toWei("0.05"), web3.toWei("0.04"), true, {from: _saleOwner});
             await icoPoolParty.completeConfiguration({from: _saleOwner});
@@ -58,7 +58,7 @@ contract('IcoPoolParty', (accounts) => {
 
             await icoPoolParty.releaseFundsToSale({from: _saleOwner, gas: 300000, value: (subsidy + fee)});
             assert.equal(web3.eth.getBalance(customSale.address), (parseInt(await icoPoolParty.totalPoolInvestments()) + parseInt(subsidy)), "Incorrect sale balance after transfer");
-            assert.equal(await icoPoolParty.poolStatus(), Status.Claim, "Pool in incorrect status");
+            assert.equal(await icoPoolParty.poolStatus(), Status.InReview, "Pool in incorrect status");
             assert.equal(web3.eth.getBalance(_deployer), parseInt(ownerSnapshotBalance) + parseInt(fee), "Correct fee not transferred");
         });
 
@@ -108,7 +108,27 @@ contract('IcoPoolParty', (accounts) => {
         });
     });
 
-    describe('Function: releaseFundsToSale() - Generic Sale: Non Subsidized', () => {
+    describe('Function: releaseFundsToSale() - Generic Sale: Subsidized with automatic claim. ', () => {
+        beforeEach(async () => {
+            await icoPoolParty.configurePool(customSale.address, genericToken.address, "buy()", "N/A", "refund()", web3.toWei("0.05"), web3.toWei("0.04"), true, {from: _saleOwner});
+            await icoPoolParty.completeConfiguration({from: _saleOwner});
+        });
+
+        it('should release funds to subsidized sale', async () => {
+            await sleep(DUE_DILIGENCE_DURATION);
+            const ownerSnapshotBalance = web3.eth.getBalance(_deployer);
+            const subsidy = await calculateSubsidy();
+            const fee = await calculateFee();
+
+            await icoPoolParty.releaseFundsToSale({from: _saleOwner, gas: 300000, value: (subsidy + fee)});
+            assert.equal(web3.eth.getBalance(customSale.address), (parseInt(await icoPoolParty.totalPoolInvestments()) + parseInt(subsidy)), "Incorrect sale balance after transfer");
+            assert.equal(await icoPoolParty.poolStatus(), Status.Claim, "Pool in incorrect status");
+            assert.isAbove(await icoPoolParty.totalTokensReceived(), 0, "Should have received tokens");
+            assert.equal(web3.eth.getBalance(_deployer), parseInt(ownerSnapshotBalance) + parseInt(fee), "Correct fee not transferred");
+        });
+    });
+
+    describe('Function: releaseFundsToSale() - Generic Sale: Non Subsidized with buy and claim function.', () => {
         beforeEach(async () => {
             await icoPoolParty.configurePool(customSale.address, genericToken.address, "buy()", "claim()", "refund()", web3.toWei("0.05"), web3.toWei("0.04"), false, {from: _saleOwner});
             await icoPoolParty.completeConfiguration({from: _saleOwner});
