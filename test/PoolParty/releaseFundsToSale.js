@@ -173,6 +173,37 @@ contract('IcoPoolParty', (accounts) => {
         });
     });
 
+    describe('Function: releaseFundsToSale() - Generic Sale: 0% fee. ', () => {
+        beforeEach(async () => {
+            await icoPoolPartyFactory.setFeePercentage(0);
+            await icoPoolPartyFactory.createNewPoolParty("zero.fee.test", {from: _investor1});
+
+            icoPoolParty = poolPartyArtifact.at(await icoPoolPartyFactory.partyList(1));
+            await icoPoolParty.addFundsToPool({from: _investor4, value: web3.toWei("0.6")});
+            await icoPoolParty.addFundsToPool({from: _investor2, value: web3.toWei("0.4")});
+            await icoPoolParty.setAuthorizedConfigurationAddressTest(_saleOwner, {
+                from: _investor1,
+                value: web3.toWei("0.005")
+            });
+
+            await icoPoolParty.configurePool(customSale.address, genericToken.address, "buy()", "claim()", "refund()", web3.toWei("0.05"), web3.toWei("0.04"), true, {from: _saleOwner});
+            await icoPoolParty.completeConfiguration({from: _saleOwner});
+        });
+
+        it('should release funds to sale with 0% fee', async () => {
+            await sleep(DUE_DILIGENCE_DURATION);
+            const ownerSnapshotBalance = web3.eth.getBalance(_deployer);
+            const subsidy = await calculateSubsidy();
+            const fee = await calculateFee();
+            assert.equal(fee, 0, "Fee should be 0%");
+
+            await icoPoolParty.releaseFundsToSale({from: _saleOwner, gas: 300000, value: (subsidy + fee)});
+            assert.equal(web3.eth.getBalance(customSale.address), (parseInt(await icoPoolParty.totalPoolInvestments()) + parseInt(subsidy)), "Incorrect sale balance after transfer");
+            assert.equal(await icoPoolParty.poolStatus(), Status.InReview, "Pool in incorrect status");
+            assert.equal(web3.eth.getBalance(_deployer), parseInt(ownerSnapshotBalance), "There should be no fee");
+        });
+    });
+
     async function calculateSubsidy() {
         let _expectedGroupDiscountPercent = await icoPoolParty.expectedGroupDiscountPercent();
         smartLog("expectedGroupDiscountPercent [" + _expectedGroupDiscountPercent + "%]");
