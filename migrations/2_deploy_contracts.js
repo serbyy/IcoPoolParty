@@ -1,5 +1,7 @@
 /* global artifacts */
 
+const utils = require("../test/utils.js");
+
 const IcoPoolPartyFactory = artifacts.require("./IcoPoolPartyFactory.sol");
 const UrlBuilder = artifacts.require("./libraries/OraclizeQueryBuilder.sol");
 const OraclizeTest = artifacts.require("./OracalizeTest.sol");
@@ -11,5 +13,8 @@ module.exports = function (deployer, network, accounts) {
     deployer.link(UrlBuilder, OraclizeTest);
 
     deployer.deploy(OraclizeTest);
-    deployer.deploy(IcoPoolPartyFactory, accounts[6]);
+    deployer.deploy(IcoPoolPartyFactory, accounts[6]).then(async () => {
+        utils.addKeyToDappConfig("IcoPoolPartyFactoryAddress", IcoPoolPartyFactory.address);
+    });
 };
+
