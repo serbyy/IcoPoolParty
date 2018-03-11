@@ -33,6 +33,7 @@ contract('ICO Pool Party', function (accounts) {
 
         //CREATE A NEW POOL
         smartLog("Creating new pool...", true);
+        await icoPoolPartyFactoryContract.setDueDiligenceDuration(3);
         await icoPoolPartyFactoryContract.setWaterMark(web3.toWei("10"));
         await icoPoolPartyFactoryContract.createNewPoolParty("testDomain" + domainIndex + ".io", {from: deployer});
         const poolAddress = await icoPoolPartyFactoryContract.partyList(domainIndex);
@@ -156,13 +157,6 @@ contract('ICO Pool Party', function (accounts) {
             smartLog("accountBalanceBefore: " + accountBalanceBefore);
             smartLog("contributionBefore: " + contributionBefore);
 
-            //Have someone claim
-            await icoPoolPartyContract.claimRefund({
-                from: investor1,
-                gas: 300000
-            });
-
-            smartLog("claimRefund() called...");
 
             await icoPoolPartyContract.claimRefundFromIco({
                 from: accounts[7],
@@ -170,6 +164,14 @@ contract('ICO Pool Party', function (accounts) {
             });
 
             smartLog("claimRefundFromIco() called...");
+
+            //Have someone claim
+            await icoPoolPartyContract.claimRefund({
+                from: investor1,
+                gas: 300000
+            });
+
+            smartLog("claimRefund() called...");
 
             //Investor who claimed tokens due? Ether due?
             await expectThrow(

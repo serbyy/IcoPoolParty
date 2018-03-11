@@ -13,6 +13,10 @@ contract IcoPoolPartyFactory is Ownable {
     uint256 public withdrawalFee;
     uint256 public groupDiscountPercent;
     uint256 public waterMark;
+    uint256 public dueDiligenceDuration;
+    uint256 public minPurchaseAmount;
+    uint256 public minOraclizeFee;
+
 
     address public poolPartyOwnerAddress;
 
@@ -24,6 +28,9 @@ contract IcoPoolPartyFactory is Ownable {
     event WithdrawalFeeUpdate(address indexed updater, uint256 oldValue, uint256 newValue, uint256 date);
     event GroupDiscountPercentageUpdate(address indexed updater, uint256 oldValue, uint256 newValue, uint256 date);
     event WaterMarkUpdate(address indexed updater, uint256 oldValue, uint256 newValue, uint256 date);
+    event DueDiligenceDurationUpdate(address indexed updater, uint256 oldValue, uint256 newValue, uint256 date);
+    event MinPurchaseAmountUpdate(address indexed updater, uint256 oldValue, uint256 newValue, uint256 date);
+    event MinOraclizeFeeUpdate(address indexed updater, uint256 oldValue, uint256 newValue, uint256 date);
 
     /**
      * @dev Constructor for the Pool Party Factory
@@ -35,6 +42,9 @@ contract IcoPoolPartyFactory is Ownable {
         withdrawalFee = 0.0015 ether;
         groupDiscountPercent = 15;
         waterMark = 15 ether;
+        minPurchaseAmount = 0.01 ether;
+        minOraclizeFee = 0.005 ether;
+        dueDiligenceDuration = 604800 seconds; //default of 7 days
         poolPartyOwnerAddress = _poolPartyOwnerAddress;
     }
 
@@ -48,7 +58,7 @@ contract IcoPoolPartyFactory is Ownable {
         bytes32 _hashedIcoUrl = keccak256(_icoUrl);
         require(hashedPoolAddress[_hashedIcoUrl] == 0x0); //Check if name already exists
 
-        IcoPoolParty poolPartyContract = new IcoPoolParty(_icoUrl, waterMark, feePercentage, withdrawalFee, groupDiscountPercent, poolPartyOwnerAddress);
+        IcoPoolParty poolPartyContract = new IcoPoolParty(_icoUrl, waterMark, feePercentage, withdrawalFee, groupDiscountPercent, poolPartyOwnerAddress, dueDiligenceDuration, minPurchaseAmount, minOraclizeFee);
         poolPartyContract.transferOwnership(msg.sender);
         partyList.push(address(poolPartyContract));
         hashedPoolAddress[_hashedIcoUrl] = address(poolPartyContract);
@@ -125,6 +135,40 @@ contract IcoPoolPartyFactory is Ownable {
         waterMark = _waterMark;
 
         WaterMarkUpdate(msg.sender, _oldValue, _waterMark, now);
+    }
+
+    /**
+     * @dev Sets the amount of time the pool must be in due diligence state for (in seconds)
+     * @param _dueDiligenceDurationInSeconds The new duration in seconds
+     */
+    function setDueDiligenceDuration(uint256 _dueDiligenceDurationInSeconds) public onlyOwner {
+        require(_dueDiligenceDurationInSeconds > 0);
+        uint256 _oldValue = dueDiligenceDuration;
+        dueDiligenceDuration = _dueDiligenceDurationInSeconds * 1 seconds;
+
+        DueDiligenceDurationUpdate(msg.sender, _oldValue, dueDiligenceDuration, now);
+    }
+
+    /**
+     * @dev Sets the minimum purchase amount to join a pool
+     * @param _minPurchaseAmount Minimum amount in wei
+     */
+    function setMinPurchaseAmount(uint256 _minPurchaseAmount) public onlyOwner {
+        uint256 _oldValue = _minPurchaseAmount;
+        minPurchaseAmount = _minPurchaseAmount;
+
+        MinPurchaseAmountUpdate(msg.sender, _oldValue, _minPurchaseAmount, now);
+    }
+
+    /**
+     * @dev Sets the minimum Oraclize fee
+     * @param _minOraclizeFee Minimum Oraclize fee in wei
+     */
+    function setMinOraclizeFee(uint256 _minOraclizeFee) public onlyOwner {
+        uint256 _oldValue = minOraclizeFee;
+        minOraclizeFee = _minOraclizeFee;
+
+        MinOraclizeFeeUpdate(msg.sender, _oldValue, _minOraclizeFee, now);
     }
 
     /**
