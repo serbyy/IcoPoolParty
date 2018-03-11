@@ -15,6 +15,8 @@ module.exports = function (deployer, network, accounts) {
     deployer.deploy(OraclizeTest);
     deployer.deploy(IcoPoolPartyFactory, accounts[6]).then(async () => {
         utils.addKeyToDappConfig("IcoPoolPartyFactoryAddress", IcoPoolPartyFactory.address);
+        const factory = await IcoPoolPartyFactory.deployed();
+        return factory.setDueDiligenceDuration(3, {from: accounts[0]});
     });
 };
 
