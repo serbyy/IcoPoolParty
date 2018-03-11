@@ -21,6 +21,7 @@ contract('Pool Party ICO', function (accounts) {
             icoPoolPartyFactoryContract = await icoPoolPartyFactory.deployed();
             smartLog("Pool Party Factory Address [" + await icoPoolPartyFactoryContract.address + "]");
 
+            await icoPoolPartyFactoryContract.setDueDiligenceDuration(3);
             await icoPoolPartyFactoryContract.setWaterMark(web3.toWei("10", "ether"), {from: accounts[0]});
             smartLog("New watermark [" + await icoPoolPartyFactoryContract.waterMark() + "]");
 

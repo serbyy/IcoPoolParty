@@ -7,6 +7,11 @@ import "./interfaces/IErc20Token.sol";
 import "./usingOraclize.sol";
 import "./libraries/OraclizeQueryBuilder.sol";
 
+/**
+ * @title IcoPoolParty
+ * @dev Individual pools that are linked to a particular ICO
+ * @author - Shane van Coller
+ */
 contract IcoPoolParty is Ownable, usingOraclize {
     using SafeMath for uint256;
     using OraclizeQueryBuilder for OraclizeQueryBuilder.OraclizeQueries;
@@ -14,8 +19,6 @@ contract IcoPoolParty is Ownable, usingOraclize {
     /* Constants */
     uint256 constant VERSION = 1;
     uint256 constant DECIMAL_PRECISION = 10**18;
-    uint256 constant MIN_PURCHASE_AMOUNT = 0.01 ether;
-    uint256 constant MIN_ORACLIZE_FEE = 0.005 ether;
 
     string public icoUrl;
     string public buyFunctionName;
@@ -36,6 +39,9 @@ contract IcoPoolParty is Ownable, usingOraclize {
     uint256 public reviewPeriodStart;
     uint256 public balanceRemainingSnapshot;
     uint256 public tokenPrecision;
+    uint256 public minPurchaseAmount;
+    uint256 public minOraclizeFee;
+    uint256 public dueDiligenceDuration;
 
     address public poolPartyOwnerAddress;
     address public destinationAddress;
@@ -102,14 +108,13 @@ contract IcoPoolParty is Ownable, usingOraclize {
     }
 
     /**
-     * @dev Start the 7 day timer to once the sale is configured - this gives time for investors to review where their funds will go before they are released to the configured address
+     * @dev Start the timer to once the sale is configured - this gives time for investors to review where their funds will go before they are released to the configured address
      */
     modifier timedTransition {
         if (
             poolStatus == Status.DueDiligence &&
             reviewPeriodStart != 0 &&
-            //now >= reviewPeriodStart + 7 days
-            now >= reviewPeriodStart + 3 seconds //TODO: CHANGE TO 7 DAYS ONCE TESTING IS DONE
+            now >= reviewPeriodStart + dueDiligenceDuration
         ) {
             poolStatus = Status.InReview;
         }
@@ -132,6 +137,9 @@ contract IcoPoolParty is Ownable, usingOraclize {
      * @param _withdrawalFee Fee charged for kicking a participant
      * @param _groupDiscountPercent Expected percentage discount that the pool will receive
      * @param _poolPartyOwnerAddress Address to pay the Pool Party fee to
+     * @param _dueDiligenceDuration Duration in seconds of the due diligence state
+     * @param _minPurchaseAmount Duration in seconds of the due diligence state
+     * @param _minOraclizeFee Duration in seconds of the due diligence state
      */
     function IcoPoolParty(
         string _icoUrl,
@@ -139,7 +147,10 @@ contract IcoPoolParty is Ownable, usingOraclize {
         uint256 _feePercentage,
         uint256 _withdrawalFee,
         uint256 _groupDiscountPercent,
-        address _poolPartyOwnerAddress
+        address _poolPartyOwnerAddress,
+        uint256 _dueDiligenceDuration,
+        uint256 _minPurchaseAmount,
+        uint256 _minOraclizeFee
     )
         public
     {
@@ -149,6 +160,9 @@ contract IcoPoolParty is Ownable, usingOraclize {
         withdrawalFee = _withdrawalFee;
         expectedGroupDiscountPercent = _groupDiscountPercent;
         poolPartyOwnerAddress = _poolPartyOwnerAddress;
+        dueDiligenceDuration = _dueDiligenceDuration;
+        minPurchaseAmount = _minPurchaseAmount;
+        minOraclizeFee = _minOraclizeFee;
         poolParticipants = 0;
         reviewPeriodStart = 0;
 
@@ -157,7 +171,7 @@ contract IcoPoolParty is Ownable, usingOraclize {
     }
 
     /**
-     * @dev Default fallback function, only the sale address is allowed to send funds directly to this contract
+     * @dev Default fallback function
      */
     function () public payable {
     }
@@ -176,7 +190,7 @@ contract IcoPoolParty is Ownable, usingOraclize {
             poolStatus == Status.WaterMarkReached ||
             poolStatus == Status.DueDiligence
         );
-        require(msg.value >= MIN_PURCHASE_AMOUNT);
+        require(msg.value >= minPurchaseAmount);
 
         Investor storage _investor = investors[msg.sender];
 
@@ -219,9 +233,12 @@ contract IcoPoolParty is Ownable, usingOraclize {
     }
 
     /* TODO: REMOVE THIS FUNCTION WHEN DEPLOYING - ONLY USED TO SKIP ORACLIZE CALL */
-    function setAuthorizedConfigurationAddressTest(address _authorizedAddress) public payable {
+    function setAuthorizedConfigurationAddressTest(address _authorizedAddress)
+        public
+        payable
+    {
         require(poolStatus == Status.WaterMarkReached);
-        require(msg.value >= MIN_ORACLIZE_FEE);
+        require(msg.value >= minOraclizeFee);
         authorizedConfigurationAddress = _authorizedAddress;
     }
 
@@ -233,7 +250,7 @@ contract IcoPoolParty is Ownable, usingOraclize {
         payable
     {
         require(poolStatus == Status.WaterMarkReached);
-        require(msg.value >= MIN_ORACLIZE_FEE);
+        require(msg.value >= minOraclizeFee);
         oQueries.buildQueries(icoUrl);
         oraclize_setProof(proofType_TLSNotary | proofStorage_IPFS);
         oraclizeQueryId = oraclize_query("URL", oQueries.oraclizeQueryAuthorizedConfigAddress);
@@ -257,7 +274,7 @@ contract IcoPoolParty is Ownable, usingOraclize {
     }
 
     /**
-     * @dev Configure sale parameters - only sale owner can do this
+     * @dev Configure sale parameters - only the authorized address can do this
      * @param _destination Address where the pool funds will be sent once released to the ICO
      * @param _tokenAddress Address of the token being bought (must be an ERC20 token)
      * @param _buyFnName Name of the buy function in the "sale" contract
@@ -308,7 +325,7 @@ contract IcoPoolParty is Ownable, usingOraclize {
 
 
     /**
-     * @dev Complete the configuration and start the 7 day timer for participants to review the configured parameters - only sale owner can do this
+     * @dev Complete the configuration and start the 7 day timer for participants to review the configured parameters - only the authorized address can do this
      */
     function completeConfiguration()
         public
@@ -328,7 +345,7 @@ contract IcoPoolParty is Ownable, usingOraclize {
         require (expectedGroupTokenPrice >= groupEthPricePerToken);
 
         uint8 decimals = tokenAddress.decimals();
-        tokenPrecision = decimals == 0 ? 1 : power(10, decimals);
+        tokenPrecision = power(10, decimals);
 
         actualGroupDiscountPercent = (publicEthPricePerToken.sub(groupEthPricePerToken)).mul(100).div(publicEthPricePerToken);
 
@@ -367,7 +384,7 @@ contract IcoPoolParty is Ownable, usingOraclize {
     }
 
     /**
-     * @dev Once 7 days has passed since the configuration was completed, the pool funds can be released to the Sale contract in exchange for tokens.
+     * @dev Once due diligence duration has passed since the configuration was completed, the pool funds can be released to the Sale contract in exchange for tokens - only the authorized address can do this
      *      address.call is used to get around the fact that the minimum gas amount is sent with a .send or .transfer - this call needs more than the minimum
      */
     function releaseFundsToSale()
@@ -393,7 +410,7 @@ contract IcoPoolParty is Ownable, usingOraclize {
             _amountToRelease = totalPoolInvestments;
         }
 
-        //Transfer the fee to us
+        //Transfer the fee to pool party owners
         poolPartyOwnerAddress.transfer(_feeAmount);
 
         //Release funds to sale contract
@@ -416,8 +433,7 @@ contract IcoPoolParty is Ownable, usingOraclize {
 
     /*
      * INTEGRATION POINT WITH SALE CONTRACT
-     * @dev If tokens are not minted by ICO at time of purchase, they need to be claimed once the sale is over. Tokens are released to this contract. actualGroupTokenPrice is calculated when the
-     *      configuration is completed by the ICO
+     * @dev If tokens are not minted by ICO at time of purchase, they need to be claimed once the sale is over - only the authorized address can do this.
      */
     function claimTokensFromIco()
         public
@@ -435,12 +451,11 @@ contract IcoPoolParty is Ownable, usingOraclize {
             poolStatus = Status.Claim;
             ClaimedTokensFromIco(address(this), totalTokensReceived, now);
         }
-
     }
 
     /*
 	 * INTEGRATION POINT WITH SALE CONTRACT
-	 * @dev In the case that the token sale is unsuccessful, withdraw funds from Sale Contract back to this contract in order for investors to claim their refund
+	 * @dev In the case that the token sale is unsuccessful, withdraw funds from Sale Contract back to this contract in order for investors to claim their refund - only the authorized address can do this
      */
     function claimRefundFromIco()
         public
@@ -461,7 +476,7 @@ contract IcoPoolParty is Ownable, usingOraclize {
     }
 
     /**
-     * @dev Tokens are distributed proportionately to how much they contributed.
+     * @dev Call by each pool participant. Tokens are distributed proportionately to how much the caller contributed.
      */
     function claimTokens() public {
         Investor storage _investor = investors[msg.sender];
@@ -481,7 +496,8 @@ contract IcoPoolParty is Ownable, usingOraclize {
     }
 
     /**
-     * @dev If there are any funds left in the contract after once the sale completes, participants are entitled to claim their share proportionality to how much they contributed
+     * @dev Call by each pool participant. If there are any funds left in the contract after the sale completes, participants are entitled to claim their share proportionality to how much they contributed
+     *      Once refund is claimed, this function cannot be called again
      */
     function claimRefund() public {
         Investor storage _investor = investors[msg.sender];

@@ -22,7 +22,7 @@ contract('Generic Pool Party ICO', function (accounts) {
         before(async () => {
             icoPoolPartyFactoryContract = await icoPoolPartyFactory.deployed();
             smartLog("Pool Party Factory Address [" + await icoPoolPartyFactoryContract.address + "]");
-
+            await icoPoolPartyFactoryContract.setDueDiligenceDuration(3);
             genericTokenContract = await genericToken.deployed();
             customSaleContract = await CustomSale.deployed();
         });

@@ -38,6 +38,7 @@ contract('IcoPoolParty', (accounts) => {
         await genericToken.transferOwnership(customSale.address, {from: _deployer});
 
         icoPoolPartyFactory = await poolPartyFactoryArtifact.new(_deployer, {from: _deployer});
+        await icoPoolPartyFactory.setDueDiligenceDuration(DUE_DILIGENCE_DURATION/1000);
         await icoPoolPartyFactory.setWaterMark(web3.toWei("1"));
         await icoPoolPartyFactory.createNewPoolParty("api.test.foreground.io", {from: _investor1});
 
@@ -64,8 +65,8 @@ contract('IcoPoolParty', (accounts) => {
         it('should claim tokens from ICO', async () => {
             await icoPoolParty.claimTokensFromIco({from: _saleOwner});
             const tokensAllocated = await genericToken.balanceOf(icoPoolParty.address);
-            const tokensExpected = await icoPoolParty.totalTokensReceived();
-            smartLog("TokenAllocated [" + tokensAllocated + " ], TokensReceived [" + tokensExpected + "]", true);
+            const contractTokenReceived = await icoPoolParty.totalTokensReceived();
+            smartLog("TokenAllocated [" + tokensAllocated + " ], TokensReceived [" + contractTokenReceived + "]", true);
             assert.isAbove(tokensAllocated, 0, "Should have received tokens");
         });
 

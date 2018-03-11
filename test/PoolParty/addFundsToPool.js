@@ -6,7 +6,7 @@ const genericTokenArtifact = artifacts.require('./test-contracts/GenericToken');
 
 const MIN_CONT_AMOUNT = web3.toWei("0.01");
 const ZERO_ADDRESS = "0x0000000000000000000000000000000000000000";
-const DUE_DILIGENCE_DURATION = 3000;
+const DUE_DILIGENCE_DURATION = 2000;
 
 let icoPoolPartyFactory;
 let icoPoolParty;
@@ -28,6 +28,7 @@ contract('IcoPoolParty', (accounts) => {
         genericToken = await genericTokenArtifact.new();
 
         icoPoolPartyFactory = await poolPartyFactoryArtifact.new(_deployer, {from: _deployer});
+        await icoPoolPartyFactory.setDueDiligenceDuration(DUE_DILIGENCE_DURATION/1000);
         await icoPoolPartyFactory.setWaterMark(web3.toWei("1"));
         await icoPoolPartyFactory.createNewPoolParty("api.test.foreground.io", {from: _investor1});
         icoPoolParty = poolPartyArtifact.at(await icoPoolPartyFactory.partyList(0));

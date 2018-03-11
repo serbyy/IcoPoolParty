@@ -20,6 +20,7 @@ contract('IcoPoolParty', (accounts) => {
 
     beforeEach(async () => {
         icoPoolPartyFactory = await poolPartyFactoryArtifact.new(_deployer, {from: _deployer});
+        await icoPoolPartyFactory.setDueDiligenceDuration(3);
         await icoPoolPartyFactory.setWaterMark(web3.toWei("1"));
         await icoPoolPartyFactory.createNewPoolParty("api.test.foreground.io", {from: _investor1});
         icoPoolParty = poolPartyArtifact.at(await icoPoolPartyFactory.partyList(0));
