@@ -549,12 +549,13 @@ contract IcoPoolParty is Ownable, usingOraclize {
     function getContributionsDue(address _user)
         public
         view
-        returns (uint256, uint256, uint256)
+        returns (uint256, uint256, uint256, bool, bool)
     {
-        if (poolStatus != Status.Claim) {return (0, 0, 0);}
+        if (poolStatus != Status.Claim) {return (0, 0, 0, false, false);}
 
-        var (_percentageContribution, _refundAmount, _tokensDue) = calculateDerivedValues(investors[_user].investmentAmount);
-        return (_percentageContribution, _refundAmount, _tokensDue);
+        Investor storage _investor = investors[_user];
+        var (_percentageContribution, _refundAmount, _tokensDue) = calculateDerivedValues(_investor.investmentAmount);
+        return (_percentageContribution, _refundAmount, _tokensDue, _investor.hasClaimedRefund, _investor.hasClaimedTokens);
     }
 
     /**********************/
