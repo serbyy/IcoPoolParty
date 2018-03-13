@@ -71,10 +71,10 @@ contract IcoPoolParty is Ownable, usingOraclize {
         uint256 tokensDue;
         uint256 percentageContribution;
         uint256 arrayIndex;
-        bool canClaimRefund;
+        bool hasClaimedRefund;
         bool isActive;
         uint256 refundAmount;
-        bool canClaimTokens;
+        bool hasClaimedTokens;
     }
 
     enum Status {Open, WaterMarkReached, DueDiligence, InReview, Claim}
@@ -200,8 +200,8 @@ contract IcoPoolParty is Ownable, usingOraclize {
             poolParticipants = poolParticipants.add(1);
             investorList.push(msg.sender);
             _investor.isActive = true;
-            _investor.canClaimRefund = true;
-            _investor.canClaimTokens = true;
+            _investor.hasClaimedRefund = false;
+            _investor.hasClaimedTokens = false;
             _investor.arrayIndex = investorList.length-1;
         }
 
@@ -493,9 +493,9 @@ contract IcoPoolParty is Ownable, usingOraclize {
         require(totalTokensReceived > 0);
         require(_investor.isActive);
         require(_investor.investmentAmount > 0);
-        require(_investor.canClaimTokens);
+        require(!_investor.hasClaimedTokens);
 
-        _investor.canClaimTokens = false;
+        _investor.hasClaimedTokens = true;
         calculateAndStoreDerivedValues(msg.sender);
 
         TokensClaimed(msg.sender, _investor.investmentAmount, _investor.tokensDue, now);
@@ -511,9 +511,9 @@ contract IcoPoolParty is Ownable, usingOraclize {
         require(poolStatus == Status.Claim);
         require(_investor.isActive);
         require(_investor.investmentAmount > 0);
-        require(_investor.canClaimRefund);
+        require(!_investor.hasClaimedRefund);
 
-        _investor.canClaimRefund = false;
+        _investor.hasClaimedRefund = true;
         calculateAndStoreDerivedValues(msg.sender);
 
         RefundClaimed(msg.sender, _investor.refundAmount, now);
@@ -551,7 +551,7 @@ contract IcoPoolParty is Ownable, usingOraclize {
         view
         returns (uint256, uint256, uint256)
     {
-        if (totalTokensReceived == 0) {return (0, 0, 0);}
+        if (poolStatus != Status.Claim) {return (0, 0, 0);}
 
         var (_percentageContribution, _refundAmount, _tokensDue) = calculateDerivedValues(investors[_user].investmentAmount);
         return (_percentageContribution, _refundAmount, _tokensDue);

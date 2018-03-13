@@ -128,6 +128,7 @@ contract('IcoPoolParty', (accounts) => {
             assert.equal((await icoPoolParty.investors(_nonInvestor))[4], false, "Default value should be false");
             assert.equal((await icoPoolParty.investors(_nonInvestor))[5], false, "Default value should be false");
             assert.equal((await icoPoolParty.investors(_nonInvestor))[6], 0, "Default values should be 0");
+            assert.equal((await icoPoolParty.investors(_nonInvestor))[7], false, "Default value should be false");
 
             await icoPoolParty.addFundsToPool({from: _investor1, value: web3.toWei("0.02")});
             assert.equal(await icoPoolParty.poolParticipants(), 1, "Incorrect number of participants");
@@ -135,16 +136,18 @@ contract('IcoPoolParty', (accounts) => {
             assert.equal((await icoPoolParty.investors(_investor1))[1], 0, "Should still be default value");
             assert.equal((await icoPoolParty.investors(_investor1))[2], 0, "Should still be default value");
             assert.equal((await icoPoolParty.investors(_investor1))[3], 0, "Index should be 0");
-            assert.equal((await icoPoolParty.investors(_investor1))[4], true, "Investor should be able to claim refund");
+            assert.equal((await icoPoolParty.investors(_investor1))[4], false, "Investor has not claimed refund");
             assert.equal((await icoPoolParty.investors(_investor1))[5], true, "Investor should be active");
             assert.equal((await icoPoolParty.investors(_investor1))[6], 0, "Should still be default value");
+            assert.equal((await icoPoolParty.investors(_investor1))[7], false, "Investor has not claimed tokens");
 
             await icoPoolParty.addFundsToPool({from: _investor2, value: web3.toWei("0.025")});
             assert.equal(await icoPoolParty.poolParticipants(), 2, "Incorrect number of participants");
             assert.equal((await icoPoolParty.investors(_investor2))[0], web3.toWei("0.025"), "Incorrect investor balance");
             assert.equal((await icoPoolParty.investors(_investor2))[3], 1, "Index should be 1");
-            assert.equal((await icoPoolParty.investors(_investor2))[4], true, "Investor should be able to claim refund");
+            assert.equal((await icoPoolParty.investors(_investor2))[4], false, "Investor has not claimed refund");
             assert.equal((await icoPoolParty.investors(_investor2))[5], true, "Investor should be active");
+            assert.equal((await icoPoolParty.investors(_investor2))[7], false, "Investor has not claimed tokens");
         });
     });
 
