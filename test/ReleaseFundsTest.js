@@ -74,7 +74,7 @@ contract('Generic Pool Party ICO - Release Funds', function (accounts) {
         
         //Set the Authorized Configuration Address
         let poolState = await icoPoolPartyContract.poolStatus();
-        await icoPoolPartyContract.setAuthorizedConfigurationAddressTest(accounts[7], {from: accounts[0], value: web3.toWei("0.005")});
+        await icoPoolPartyContract.setAuthorizedConfigurationAddressTest(accounts[7], false, {from: accounts[0], value: web3.toWei("0.005")});
         let poolDetails = await icoPoolPartyContract.getPoolDetails();
         smartLog("Pool details [" + poolDetails + "]");
         let configDetails = await icoPoolPartyContract.getConfigDetails();
@@ -173,7 +173,7 @@ contract('Generic Pool Party ICO - Release Funds', function (accounts) {
             smartLog("Sale Contract Balance AFTER [" + web3.fromWei(web3.eth.getBalance(customSaleContract.address)) + "]");
             smartLog("Pool Contract Balance AFTER [" + web3.fromWei(web3.eth.getBalance(icoPoolPartyContract.address)) + "]");
 
-            let tokensDue0 = await icoPoolPartyContract.getTokensDue(investor1);
+            let tokensDue0 = (await icoPoolPartyContract.getContributionsDue(investor1))[2];
             smartLog("Account 0 has [" + tokensDue0 + "] tokens due");            
         });
 
@@ -184,19 +184,19 @@ contract('Generic Pool Party ICO - Release Funds', function (accounts) {
             await CompleteConfiguration();
             await ReleaseFundsToSale();
 
-            let investor1tokensDue = await icoPoolPartyContract.getTokensDue(investor1);
+            let investor1tokensDue = (await icoPoolPartyContract.getContributionsDue(investor1))[2];
             smartLog("Investor 1 has [" + investor1tokensDue + "] tokens due");            
-            let investor2tokensDue = await icoPoolPartyContract.getTokensDue(investor2);
+            let investor2tokensDue = (await icoPoolPartyContract.getContributionsDue(investor2))[2];
             smartLog("Investor 2 has [" + investor2tokensDue + "] tokens due");            
-            let investor3tokensDue = await icoPoolPartyContract.getTokensDue(investor3);
+            let investor3tokensDue = (await icoPoolPartyContract.getContributionsDue(investor3))[2];
             smartLog("Investor 3 has [" + investor3tokensDue + "] tokens due");            
-            let investor4tokensDue = await icoPoolPartyContract.getTokensDue(investor4);
+            let investor4tokensDue = (await icoPoolPartyContract.getContributionsDue(investor4))[2];
             smartLog("Investor 4 has [" + investor4tokensDue + "] tokens due");            
-            let investor5tokensDue = await icoPoolPartyContract.getTokensDue(investor5);
+            let investor5tokensDue = (await icoPoolPartyContract.getContributionsDue(investor5))[2];
             smartLog("Investor 5 has [" + investor5tokensDue + "] tokens due");   
-            let investor6tokensDue = await icoPoolPartyContract.getTokensDue(investor6);
+            let investor6tokensDue = (await icoPoolPartyContract.getContributionsDue(investor6))[2];
             smartLog("Investor 6 has [" + investor6tokensDue + "] tokens due");   
-            let investor7tokensDue = await icoPoolPartyContract.getTokensDue(investor7);
+            let investor7tokensDue = (await icoPoolPartyContract.getContributionsDue(investor7))[2];
             smartLog("Investor 7 has [" + investor7tokensDue + "] tokens due");   
 
             assert.equal(investor3tokensDue, 0, "Incorrect total, expected 0 tokens");
@@ -250,19 +250,19 @@ contract('Generic Pool Party ICO - Release Funds', function (accounts) {
 
             smartLog("ACTUAL TOKENS: " + tokensActuallySent);
 
-            let investor1tokensDue = await icoPoolPartyContract.getTokensDue(investor1);
+            let investor1tokensDue = (await icoPoolPartyContract.getContributionsDue(investor1))[2];
             smartLog("Investor 1 has [" + investor1tokensDue + "] tokens due");            
-            let investor2tokensDue = await icoPoolPartyContract.getTokensDue(investor2);
+            let investor2tokensDue = (await icoPoolPartyContract.getContributionsDue(investor2))[2];
             smartLog("Investor 2 has [" + investor2tokensDue + "] tokens due");            
-            let investor3tokensDue = await icoPoolPartyContract.getTokensDue(investor3);
+            let investor3tokensDue = (await icoPoolPartyContract.getContributionsDue(investor3))[2];
             smartLog("Investor 3 has [" + investor3tokensDue + "] tokens due");            
-            let investor4tokensDue = await icoPoolPartyContract.getTokensDue(investor4);
+            let investor4tokensDue = (await icoPoolPartyContract.getContributionsDue(investor4))[2];
             smartLog("Investor 4 has [" + investor4tokensDue + "] tokens due");            
-            let investor5tokensDue = await icoPoolPartyContract.getTokensDue(investor5);
+            let investor5tokensDue = (await icoPoolPartyContract.getContributionsDue(investor5))[2];
             smartLog("Investor 5 has [" + investor5tokensDue + "] tokens due");   
-            let investor6tokensDue = await icoPoolPartyContract.getTokensDue(investor6);
+            let investor6tokensDue = (await icoPoolPartyContract.getContributionsDue(investor6))[2];
             smartLog("Investor 6 has [" + investor6tokensDue + "] tokens due");   
-            let investor7tokensDue = await icoPoolPartyContract.getTokensDue(investor7);
+            let investor7tokensDue = (await icoPoolPartyContract.getContributionsDue(investor7))[2];
             smartLog("Investor 7 has [" + investor7tokensDue + "] tokens due");   
             
             assert.equal(investor1tokensDue, investor6tokensDue * 2, "Incorrect relative token balances...");

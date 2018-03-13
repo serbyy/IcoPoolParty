@@ -40,7 +40,7 @@ contract('IcoPoolParty', (accounts) => {
         await icoPoolParty.addFundsToPool({from: _investor4, value: web3.toWei("1.248397872")});
         await icoPoolParty.addFundsToPool({from: _investor2, value: web3.toWei("1.123847")});
         await icoPoolParty.addFundsToPool({from: _investor3, value: web3.toWei("1.22")});
-        await icoPoolParty.setAuthorizedConfigurationAddressTest(_saleOwner, {
+        await icoPoolParty.setAuthorizedConfigurationAddressTest(_saleOwner, false, {
             from: _investor1,
             value: web3.toWei("0.005")
         });
@@ -63,13 +63,17 @@ contract('IcoPoolParty', (accounts) => {
         });
 
         it('should claim tokens from pool', async () => {
-            smartLog("Investor 4 should have [" + await icoPoolParty.getTokensDue(_investor4) + "] tokens due", true);
-            smartLog("Investor 2 should have [" + await icoPoolParty.getTokensDue(_investor2) + "] tokens due", true);
-            smartLog("Investor 3 should have [" + await icoPoolParty.getTokensDue(_investor3) + "] tokens due", true);
+            smartLog("Investor 4 should have [" + (await icoPoolParty.getContributionsDue(_investor4))[2] + "] tokens due", true);
+            smartLog("Investor 2 should have [" + (await icoPoolParty.getContributionsDue(_investor2))[2] + "] tokens due", true);
+            smartLog("Investor 3 should have [" + (await icoPoolParty.getContributionsDue(_investor3))[2] + "] tokens due", true);
+            smartLog("Investor can claim Refund [" + (await icoPoolParty.investors(_investor4))[4] + "]", true);
+            smartLog("Investor can claim Tokens [" + (await icoPoolParty.investors(_investor4))[7] + "]", true);
 
             const investor4Amount = (await icoPoolParty.investors(_investor4))[0];
             await icoPoolParty.claimTokens({from: _investor4});
             //assert.equal(await genericToken.balanceOf(_investor4), await calculateTokensDue(genericToken, investor4Amount), "Incorrect number of tokens received");
+            smartLog("Investor can claim Refund [" + (await icoPoolParty.investors(_investor4))[4] + "]", true);
+            smartLog("Investor can claim Tokens [" + (await icoPoolParty.investors(_investor4))[7] + "]", true);
 
             const investor2Amount = (await icoPoolParty.investors(_investor2))[0];
             await icoPoolParty.claimTokens({from: _investor2});
@@ -83,9 +87,9 @@ contract('IcoPoolParty', (accounts) => {
 
             smartLog("Tokens Received = " + web3.fromWei(await icoPoolParty.totalTokensReceived()), true);
 
-            smartLog("Investor 4 percentage contribution [" + web3.fromWei((await icoPoolParty.investors(_investor4))[2]) + "]%", true);
-            smartLog("Investor 2 percentage contribution [" + web3.fromWei((await icoPoolParty.investors(_investor2))[2]) + "]%", true);
-            smartLog("Investor 3 percentage contribution [" + web3.fromWei((await icoPoolParty.investors(_investor3))[2]) + "]%", true);
+            smartLog("Investor 4 percentage contribution [" + web3.fromWei((await icoPoolParty.getContributionsDue(_investor4))[0]) + "]%", true);
+            smartLog("Investor 2 percentage contribution [" + web3.fromWei((await icoPoolParty.getContributionsDue(_investor2))[0]) + "]%", true);
+            smartLog("Investor 3 percentage contribution [" + web3.fromWei((await icoPoolParty.getContributionsDue(_investor3))[0]) + "]%", true);
 
             smartLog("Investor 4 actually has [" + await genericToken.balanceOf(_investor4) + "] tokens", true);
             smartLog("Investor 2 actually has [" + await genericToken.balanceOf(_investor2) + "] tokens", true);
@@ -118,9 +122,9 @@ contract('IcoPoolParty', (accounts) => {
         it('should claim tokens from pool', async () => {
             smartLog("Tokens Received = " + await dealToken.balanceOf(icoPoolParty.address), true);
 
-            smartLog("Investor 4 has [" + await icoPoolParty.getTokensDue(_investor4) + "] tokens due before claim", true);
-            smartLog("Investor 2 has [" + await icoPoolParty.getTokensDue(_investor2) + "] tokens due before claim", true);
-            smartLog("Investor 3 has [" + await icoPoolParty.getTokensDue(_investor3) + "] tokens due before claim", true);
+            smartLog("Investor 4 has [" + (await icoPoolParty.getContributionsDue(_investor4))[2] + "] tokens due before claim", true);
+            smartLog("Investor 2 has [" + (await icoPoolParty.getContributionsDue(_investor2))[2] + "] tokens due before claim", true);
+            smartLog("Investor 3 has [" + (await icoPoolParty.getContributionsDue(_investor3))[2] + "] tokens due before claim", true);
 
             await icoPoolParty.claimTokens({from: _investor4});
             await icoPoolParty.claimTokens({from: _investor2});

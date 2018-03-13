@@ -48,6 +48,7 @@ contract IcoPoolParty is Ownable, usingOraclize {
     address public authorizedConfigurationAddress;
 
     bool public subsidyRequired;
+    bool public configUrlRequiresWww;
 
     bytes32 hashedBuyFunctionName;
     bytes32 hashedRefundFunctionName;
@@ -71,8 +72,9 @@ contract IcoPoolParty is Ownable, usingOraclize {
         uint256 percentageContribution;
         uint256 arrayIndex;
         bool canClaimRefund;
-        bool active;
+        bool isActive;
         uint256 refundAmount;
+        bool canClaimTokens;
     }
 
     enum Status {Open, WaterMarkReached, DueDiligence, InReview, Claim}
@@ -194,11 +196,12 @@ contract IcoPoolParty is Ownable, usingOraclize {
 
         Investor storage _investor = investors[msg.sender];
 
-        if(_investor.active == false) {
+        if(_investor.isActive == false) {
             poolParticipants = poolParticipants.add(1);
             investorList.push(msg.sender);
-            _investor.active = true;
+            _investor.isActive = true;
             _investor.canClaimRefund = true;
+            _investor.canClaimTokens = true;
             _investor.arrayIndex = investorList.length-1;
         }
 
@@ -218,6 +221,7 @@ contract IcoPoolParty is Ownable, usingOraclize {
         timedTransition
     {
         Investor storage _investor = investors[msg.sender];
+        require(_investor.isActive);
         require(_investor.investmentAmount > 0);
 
         uint256 _amountToRefund = _investor.investmentAmount;
@@ -225,7 +229,7 @@ contract IcoPoolParty is Ownable, usingOraclize {
         delete investors[msg.sender];
 
         totalPoolInvestments = totalPoolInvestments.sub(_amountToRefund);
-        removeInvestorFromList(_index);
+        removeUserFromList(_index);
         poolParticipants = poolParticipants.sub(1);
         FundsWithdrawn(msg.sender, _amountToRefund, now);
 
@@ -233,25 +237,30 @@ contract IcoPoolParty is Ownable, usingOraclize {
     }
 
     /* TODO: REMOVE THIS FUNCTION WHEN DEPLOYING - ONLY USED TO SKIP ORACLIZE CALL */
-    function setAuthorizedConfigurationAddressTest(address _authorizedAddress)
+    function setAuthorizedConfigurationAddressTest(address _authorizedAddress, bool _useWww)
         public
         payable
     {
         require(poolStatus == Status.WaterMarkReached);
         require(msg.value >= minOraclizeFee);
+        configUrlRequiresWww = _useWww;
         authorizedConfigurationAddress = _authorizedAddress;
+        AuthorizedAddressConfigured(msg.sender, now);
     }
 
     /**
      * @dev Oraclize call to get ICO owner from config page hosted on their domain
+     * @param _useWww Whether or not to use www subdomain for the call to Oraclize
      */
-    function setAuthorizedConfigurationAddress()
+    function setAuthorizedConfigurationAddress(bool _useWww)
         public
         payable
     {
         require(poolStatus == Status.WaterMarkReached);
         require(msg.value >= minOraclizeFee);
-        oQueries.buildQueries(icoUrl);
+
+        configUrlRequiresWww = _useWww;
+        oQueries.buildQueries(icoUrl, configUrlRequiresWww);
         oraclize_setProof(proofType_TLSNotary | proofStorage_IPFS);
         oraclizeQueryId = oraclize_query("URL", oQueries.oraclizeQueryAuthorizedConfigAddress);
     }
@@ -372,7 +381,7 @@ contract IcoPoolParty is Ownable, usingOraclize {
         delete investors[_userToKick];
 
         poolParticipants = poolParticipants.sub(1);
-        removeInvestorFromList(_index);
+        removeUserFromList(_index);
         totalPoolInvestments = totalPoolInvestments.sub(_amountToRefund);
 
         //fee to cover gas costs for being kicked - taken from investor
@@ -480,18 +489,16 @@ contract IcoPoolParty is Ownable, usingOraclize {
      */
     function claimTokens() public {
         Investor storage _investor = investors[msg.sender];
-
         require(poolStatus == Status.Claim);
-        require(_investor.investmentAmount > 0);
         require(totalTokensReceived > 0);
+        require(_investor.isActive);
+        require(_investor.investmentAmount > 0);
+        require(_investor.canClaimTokens);
 
-        uint256 _totalContribution = _investor.investmentAmount;
-        _investor.investmentAmount = 0;
-        if (_investor.percentageContribution == 0) {
-            calculateDues(msg.sender, _totalContribution);
-        }
+        _investor.canClaimTokens = false;
+        calculateAndStoreDerivedValues(msg.sender);
 
-        TokensClaimed(msg.sender, _totalContribution, _investor.tokensDue, now);
+        TokensClaimed(msg.sender, _investor.investmentAmount, _investor.tokensDue, now);
         tokenAddress.transfer(msg.sender, _investor.tokensDue);
     }
 
@@ -502,13 +509,14 @@ contract IcoPoolParty is Ownable, usingOraclize {
     function claimRefund() public {
         Investor storage _investor = investors[msg.sender];
         require(poolStatus == Status.Claim);
+        require(_investor.isActive);
+        require(_investor.investmentAmount > 0);
         require(_investor.canClaimRefund);
 
         _investor.canClaimRefund = false;
-        if (_investor.investmentAmount != 0) { //If investmentAmount == 0, then refundAmount has already been set
-            calculateDues(msg.sender, _investor.investmentAmount);
-        }
+        calculateAndStoreDerivedValues(msg.sender);
 
+        RefundClaimed(msg.sender, _investor.refundAmount, now);
         msg.sender.transfer(_investor.refundAmount);
     }
 
@@ -535,38 +543,59 @@ contract IcoPoolParty is Ownable, usingOraclize {
     }
 
     /**
-     * @dev Allows anyone to query the number of tokens due for a given address. Returns 0 unless the tokens have been released by the sale contract (totalTokensReceived > 0)
+     * @dev Allows anyone to query the percentage contribution, refund amount and tokens due for a given address. If no tokens have been received by the sale contract, returns 0
      * @param _user The user address of the account to look up
      */
-    function getTokensDue(address _user)
+    function getContributionsDue(address _user)
         public
         view
-        returns (uint256)
+        returns (uint256, uint256, uint256)
     {
-        return totalTokensReceived > 0 ? investors[_user].investmentAmount.mul(tokenPrecision).div(groupEthPricePerToken) : 0;
+        if (totalTokensReceived == 0) {return (0, 0, 0);}
+
+        var (_percentageContribution, _refundAmount, _tokensDue) = calculateDerivedValues(investors[_user].investmentAmount);
+        return (_percentageContribution, _refundAmount, _tokensDue);
     }
 
     /**********************/
     /* INTERNAL FUNCTIONS */
     /**********************/
+
     /**
-     * @dev Internal function that sets a participants contribution percentage and refund amount based on the amount originally contributed
-     * @param _user Participant to calculate for
-     * @param _investmentAmount Investment amount used in the calculation
+     * @dev Internal function to store the calculated percentage contribution, refund amount and tokens due of a participant - values stored in the investor struct
+     * @param _user The user to calculate the values for
      */
-    function calculateDues(address _user, uint _investmentAmount) internal {
+    function calculateAndStoreDerivedValues(address _user) internal {
         Investor storage _investor = investors[_user];
-        uint256 _percentage = _investmentAmount.mul(100).mul(DECIMAL_PRECISION).div(totalPoolInvestments);
-        _investor.percentageContribution = _percentage;
-        _investor.refundAmount = balanceRemainingSnapshot.mul(_investor.percentageContribution).div(100).div(DECIMAL_PRECISION);
-        _investor.tokensDue = totalTokensReceived.mul(_percentage).div(100).div(DECIMAL_PRECISION);
+
+        if (_investor.percentageContribution == 0) {
+            var (_percentageContribution, _refundAmount, _tokensDue) = calculateDerivedValues(_investor.investmentAmount);
+            _investor.percentageContribution = _percentageContribution;
+            _investor.refundAmount = _refundAmount;
+            _investor.tokensDue = _tokensDue;
+        }
+    }
+
+    /**
+     * @dev Internal function that calculates a participants contribution percentage, refund amount and tokens due based on the amount originally contributed and total pool size
+     * @param _investmentAmount Amount used to do the calculation
+     */
+    function calculateDerivedValues(uint256 _investmentAmount)
+        internal
+        returns (uint256, uint256, uint256)
+    {
+        uint256 _percentageContribution = _investmentAmount.mul(100).mul(DECIMAL_PRECISION).div(totalPoolInvestments);
+        uint256 _refundAmount = balanceRemainingSnapshot.mul(_percentageContribution).div(100).div(DECIMAL_PRECISION);
+        uint256 _tokensDue = totalTokensReceived.mul(_percentageContribution).div(100).div(DECIMAL_PRECISION);
+
+        return (_percentageContribution, _refundAmount, _tokensDue);
     }
 
     /**
      * @dev Move the last element of the array to the index of the element being deleted, update the index of the item being moved, delete the last element of the
      *      array (because its now at position _index), reduce the size of the array
      */
-    function removeInvestorFromList(uint256 _index) internal {
+    function removeUserFromList(uint256 _index) internal {
         investorList[_index] = investorList[investorList.length - 1];
         investors[investorList[_index]].arrayIndex = _index;
         delete investorList[investorList.length - 1];

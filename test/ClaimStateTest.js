@@ -74,7 +74,7 @@ contract('ICO Pool Party', function (accounts) {
         
         //Set the Authorized Configuration Address
         let poolState = await icoPoolPartyContract.poolStatus();
-        await icoPoolPartyContract.setAuthorizedConfigurationAddressTest(accounts[7], {from: accounts[0], value: web3.toWei("0.005")});
+        await icoPoolPartyContract.setAuthorizedConfigurationAddressTest(accounts[7], false, {from: accounts[0], value: web3.toWei("0.005")});
         let poolDetails = await icoPoolPartyContract.getPoolDetails();
         smartLog("Pool details [" + poolDetails + "]");
         let configDetails = await icoPoolPartyContract.getConfigDetails();
