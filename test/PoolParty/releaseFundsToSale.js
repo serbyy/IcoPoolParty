@@ -39,7 +39,7 @@ contract('IcoPoolParty', (accounts) => {
         icoPoolParty = poolPartyArtifact.at(await icoPoolPartyFactory.partyList(0));
         await icoPoolParty.addFundsToPool({from: _investor4, value: web3.toWei("0.6")});
         await icoPoolParty.addFundsToPool({from: _investor2, value: web3.toWei("0.4")});
-        await icoPoolParty.setAuthorizedConfigurationAddressTest(_saleOwner, {
+        await icoPoolParty.setAuthorizedConfigurationAddressTest(_saleOwner, false, {
             from: _investor1,
             value: web3.toWei("0.005")
         });
@@ -182,7 +182,7 @@ contract('IcoPoolParty', (accounts) => {
             icoPoolParty = poolPartyArtifact.at(await icoPoolPartyFactory.partyList(1));
             await icoPoolParty.addFundsToPool({from: _investor4, value: web3.toWei("0.6")});
             await icoPoolParty.addFundsToPool({from: _investor2, value: web3.toWei("0.4")});
-            await icoPoolParty.setAuthorizedConfigurationAddressTest(_saleOwner, {
+            await icoPoolParty.setAuthorizedConfigurationAddressTest(_saleOwner, false, {
                 from: _investor1,
                 value: web3.toWei("0.005")
             });

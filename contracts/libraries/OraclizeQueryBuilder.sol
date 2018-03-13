@@ -8,7 +8,9 @@ library OraclizeQueryBuilder {
         string oraclizeQueryAuthorizedConfigAddress;
     }
 
-    function buildQueries(OraclizeQueries storage self, string _icoUrl) internal {
-        self.oraclizeQueryAuthorizedConfigAddress = ("json(http://".toSlice().concat(_icoUrl.toSlice())).toSlice().concat("/pool/example?json=true).saleOwnerAddress".toSlice());
+    function buildQueries(OraclizeQueries storage self, string _icoUrl, bool _useWww) internal {
+        self.oraclizeQueryAuthorizedConfigAddress = _useWww ?
+        ("json(https://www.".toSlice().concat(_icoUrl.toSlice())).toSlice().concat("/ppconfig).saleOwnerAddress".toSlice()) :
+        ("json(https://".toSlice().concat(_icoUrl.toSlice())).toSlice().concat("/ppconfig).saleOwnerAddress".toSlice());
     }
 }

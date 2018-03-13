@@ -15,7 +15,7 @@ contract OracalizeTest is usingOraclize {
 
     function OracalizeTest() public {
         OAR = OraclizeAddrResolverI(0x6f485C8BF6fc43eA212E93BBF8ce046C7f1cb475);
-        oQueries.buildQueries(icoUrl);
+        oQueries.buildQueries(icoUrl, false);
     }
 
     function __callback(bytes32 _qId, string _result, bytes _proof) public {

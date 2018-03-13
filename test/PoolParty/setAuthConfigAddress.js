@@ -35,7 +35,7 @@ contract('IcoPoolParty', (accounts) => {
 
     describe('Function: setAuthorizedConfigurationAddressTest() - BYPASS ORACLIZE', () => {
         it('should set authorized configuration address', async () => {
-            await icoPoolParty.setAuthorizedConfigurationAddressTest(_saleOwner, {
+            await icoPoolParty.setAuthorizedConfigurationAddressTest(_saleOwner, false, {
                 from: _investor1,
                 value: web3.toWei("0.005")
             });
@@ -45,13 +45,13 @@ contract('IcoPoolParty', (accounts) => {
 
     describe('Function: setAuthorizedConfigurationAddress()', () => {
         it.skip('should set authorized configuration address using oraclize', async () => {
-            await icoPoolParty.setAuthorizedConfigurationAddress({from: _investor1, value: web3.toWei("0.005")});
+            await icoPoolParty.setAuthorizedConfigurationAddress(false, {from: _investor1, value: web3.toWei("0.005")});
             await sleep(15000); //Wait for callback to be called
             assert.equal(await icoPoolParty.authorizedConfigurationAddress(), 0x2E05A304d3040f1399c8C20D2a9F659AE7521058, "Incorrect Sale Owner Configured");
         });
 
         it('should attempt to set authorized configuration address with insufficient Oraclize fee', async () => {
-            await expectThrow(icoPoolParty.setAuthorizedConfigurationAddress({
+            await expectThrow(icoPoolParty.setAuthorizedConfigurationAddress(false, {
                 from: _investor1,
                 value: web3.toWei("0.001")
             }));
@@ -63,7 +63,7 @@ contract('IcoPoolParty', (accounts) => {
             await icoPoolParty.addFundsToPool({from: _investor1, value: web3.toWei("0.1")});
             assert.notEqual(await icoPoolParty.poolStatus(), Status.WaterMarkReached, "Pool in incorrect status");
 
-            await expectThrow(icoPoolParty.setAuthorizedConfigurationAddress({
+            await expectThrow(icoPoolParty.setAuthorizedConfigurationAddress(false, {
                 from: _investor1,
                 value: web3.toWei("0.005")
             }));
@@ -71,7 +71,7 @@ contract('IcoPoolParty', (accounts) => {
         });
 
         it('should attempt to set authorized configuration address with incorrect Oraclize fee', async () => {
-            await expectThrow(icoPoolParty.setAuthorizedConfigurationAddress({
+            await expectThrow(icoPoolParty.setAuthorizedConfigurationAddress(false, {
                 from: _investor1,
                 value: web3.toWei("0.004")
             }));

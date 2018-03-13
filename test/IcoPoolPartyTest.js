@@ -113,7 +113,7 @@ contract('Pool Party ICO', function (accounts) {
             const poolState = await icoPoolPartyContract.poolStatus();
             smartLog("Pool State is [" + poolState + "]");
             assert.equal(poolState, Status.WaterMarkReached, "Pool in incorrect status");
-            await icoPoolPartyContract.setAuthorizedConfigurationAddressTest(accounts[7], {from: accounts[0], value: web3.toWei("0.005")});
+            await icoPoolPartyContract.setAuthorizedConfigurationAddressTest(accounts[7], false, {from: accounts[0], value: web3.toWei("0.005")});
             const poolDetails = await icoPoolPartyContract.getPoolDetails();
             smartLog("Foreground pool details [" + poolDetails + "]");
             const configDetails = await icoPoolPartyContract.getConfigDetails();
@@ -186,10 +186,10 @@ contract('Pool Party ICO', function (accounts) {
         });
 
         it("Should get 0 tokens due balance - tokens haven't been claimed yet", async () => {
-            var tokensDue0 = await icoPoolPartyContract.getTokensDue(accounts[0]);
+            var tokensDue0 = (await icoPoolPartyContract.getContributionsDue(accounts[0]))[2];
             smartLog("Account 0 has [" + tokensDue0 + "] tokens due");
             assert.equal(tokensDue0, 0, "Account 0 should 0 tokens");
-            var tokensDue1 = await icoPoolPartyContract.getTokensDue(accounts[1]);
+            var tokensDue1 = (await icoPoolPartyContract.getContributionsDue(accounts[1]))[2];
             smartLog("Account 1 has [" + tokensDue1 + "] tokens due");
             assert.equal(tokensDue0, 0, "Account 1 should 0 tokens");
         });
@@ -215,10 +215,10 @@ contract('Pool Party ICO', function (accounts) {
         });
 
         it("Should get correct tokens due balance", async () => {
-            var tokensDue0 = await icoPoolPartyContract.getTokensDue(accounts[0]);
+            var tokensDue0 = (await icoPoolPartyContract.getContributionsDue(accounts[0]))[2];
             smartLog("Account 0 has [" + tokensDue0 + "] tokens due");
             assert.isAbove(tokensDue0, 0, "Account 0 should have more than 0 tokens");
-            var tokensDue1 = await icoPoolPartyContract.getTokensDue(accounts[1]);
+            var tokensDue1 = (await icoPoolPartyContract.getContributionsDue(accounts[1]))[2];
             smartLog("Account 1 has [" + tokensDue1 + "] tokens due");
             assert.isAbove(tokensDue0, 0, "Account 1 should have more than 0 tokens");
         });
@@ -237,8 +237,8 @@ contract('Pool Party ICO', function (accounts) {
 
             smartLog("Pool Party token balance after everyone claims [" + await dealTokenContract.balanceOf(icoPoolPartyContract.address) + "]");
 
-            smartLog("Account 0 has [" + await icoPoolPartyContract.getTokensDue(accounts[0]) + "] tokens due after claim");
-            smartLog("Account 1 has [" + await icoPoolPartyContract.getTokensDue(accounts[1]) + "] tokens due after claim");
+            smartLog("Account 0 has [" + (await icoPoolPartyContract.getContributionsDue(accounts[0]))[2] + "] tokens due after claim");
+            smartLog("Account 1 has [" + (await icoPoolPartyContract.getContributionsDue(accounts[1]))[2] + "] tokens due after claim");
 
             smartLog("Account 0 Contribution percentage [" + (await icoPoolPartyContract.investors(accounts[0]))[2] + "]");
             smartLog("Account 1 Contribution percentage [" + (await icoPoolPartyContract.investors(accounts[1]))[2] + "]");
