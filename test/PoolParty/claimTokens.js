@@ -63,41 +63,18 @@ contract('IcoPoolParty', (accounts) => {
         });
 
         it('should claim tokens from pool', async () => {
-            smartLog("Investor 4 should have [" + (await icoPoolParty.getContributionsDue(_investor4))[2] + "] tokens due", true);
-            smartLog("Investor 2 should have [" + (await icoPoolParty.getContributionsDue(_investor2))[2] + "] tokens due", true);
-            smartLog("Investor 3 should have [" + (await icoPoolParty.getContributionsDue(_investor3))[2] + "] tokens due", true);
-            smartLog("Investor can claim Refund [" + (await icoPoolParty.investors(_investor4))[4] + "]", true);
-            smartLog("Investor can claim Tokens [" + (await icoPoolParty.investors(_investor4))[7] + "]", true);
-
-            const investor4Amount = (await icoPoolParty.investors(_investor4))[0];
             await icoPoolParty.claimTokens({from: _investor4});
-            //assert.equal(await genericToken.balanceOf(_investor4), await calculateTokensDue(genericToken, investor4Amount), "Incorrect number of tokens received");
-            smartLog("Investor can claim Refund [" + (await icoPoolParty.investors(_investor4))[4] + "]", true);
-            smartLog("Investor can claim Tokens [" + (await icoPoolParty.investors(_investor4))[7] + "]", true);
+            const investor4TokensDue = (await icoPoolParty.investors(_investor4))[1];
+            assert.equal((await genericToken.balanceOf(_investor4)).toNumber(), investor4TokensDue.toNumber(), "Incorrect number of tokens received");
 
-            const investor2Amount = (await icoPoolParty.investors(_investor2))[0];
             await icoPoolParty.claimTokens({from: _investor2});
-            //assert.equal(await genericToken.balanceOf(_investor2), await calculateTokensDue(genericToken, investor2Amount), "Incorrect number of tokens received");
+            const investor2TokensDue = (await icoPoolParty.investors(_investor2))[1];
+            assert.equal((await genericToken.balanceOf(_investor2)).toNumber(), investor2TokensDue.toNumber(), "Incorrect number of tokens received");
 
-            const investor3Amount = (await icoPoolParty.investors(_investor3))[0];
             await icoPoolParty.claimTokens({from: _investor3});
-            //assert.equal(await genericToken.balanceOf(_investor3), await calculateTokensDue(genericToken, investor3Amount), "Incorrect number of tokens received");
-
-            //assert.equal(await genericToken.balanceOf(icoPoolParty.address), 0, "Pool should have 0 tokens");
-
-            smartLog("Tokens Received = " + web3.fromWei(await icoPoolParty.totalTokensReceived()), true);
-
-            smartLog("Investor 4 percentage contribution [" + web3.fromWei((await icoPoolParty.getContributionsDue(_investor4))[0]) + "]%", true);
-            smartLog("Investor 2 percentage contribution [" + web3.fromWei((await icoPoolParty.getContributionsDue(_investor2))[0]) + "]%", true);
-            smartLog("Investor 3 percentage contribution [" + web3.fromWei((await icoPoolParty.getContributionsDue(_investor3))[0]) + "]%", true);
-
-            smartLog("Investor 4 actually has [" + await genericToken.balanceOf(_investor4) + "] tokens", true);
-            smartLog("Investor 2 actually has [" + await genericToken.balanceOf(_investor2) + "] tokens", true);
-            smartLog("Investor 3 actually has [" + await genericToken.balanceOf(_investor3) + "] tokens", true);
-
-            smartLog("Tokens left after claim [" + await genericToken.balanceOf(icoPoolParty.address) + "]", true);
+            const investor3TokensDue = (await icoPoolParty.investors(_investor3))[1];
+            assert.equal((await genericToken.balanceOf(_investor3)).toNumber(), investor3TokensDue.toNumber(), "Incorrect number of tokens received");
         });
-
     });
 
     describe('Function: claimTokens() - Foreground Sale', () => {
@@ -120,40 +97,17 @@ contract('IcoPoolParty', (accounts) => {
         });
 
         it('should claim tokens from pool', async () => {
-            smartLog("Tokens Received = " + await dealToken.balanceOf(icoPoolParty.address), true);
-
-            smartLog("Investor 4 has [" + (await icoPoolParty.getContributionsDue(_investor4))[2] + "] tokens due before claim", true);
-            smartLog("Investor 2 has [" + (await icoPoolParty.getContributionsDue(_investor2))[2] + "] tokens due before claim", true);
-            smartLog("Investor 3 has [" + (await icoPoolParty.getContributionsDue(_investor3))[2] + "] tokens due before claim", true);
-
             await icoPoolParty.claimTokens({from: _investor4});
+            const investor4TokensDue = (await icoPoolParty.investors(_investor4))[1];
+            assert.equal((await dealToken.balanceOf(_investor4)).toNumber(), investor4TokensDue.toNumber(), "Incorrect number of tokens received 4");
+
             await icoPoolParty.claimTokens({from: _investor2});
+            const investor2TokensDue = (await icoPoolParty.investors(_investor2))[1];
+            assert.equal((await dealToken.balanceOf(_investor2)).toNumber(), investor2TokensDue.toNumber(), "Incorrect number of tokens received 2");
+
             await icoPoolParty.claimTokens({from: _investor3});
-
-            /*smartLog("Investor 4 % [" + (await icoPoolParty.investors(_investor4))[2] + "] tokens due", true);
-            smartLog("Investor 2 % [" + (await icoPoolParty.investors(_investor2))[2] + "] tokens due", true);
-            smartLog("Investor 3 % [" + (await icoPoolParty.investors(_investor3))[2] + "] tokens due", true);*/
-
-            smartLog("Investor 4 actually has [" + await dealToken.balanceOf(_investor4) + "] tokens", true);
-            smartLog("Investor 2 actually has [" + await dealToken.balanceOf(_investor2) + "] tokens", true);
-            smartLog("Investor 3 actually has [" + await dealToken.balanceOf(_investor3) + "] tokens", true);
-
-            smartLog("Tokens left after claim [" + await dealToken.balanceOf(icoPoolParty.address) + "]", true);
-
-            //assert.equal(await dealToken.balanceOf(_investor4), await calculateTokensDue(dealToken, investor4Amount), "Incorrect number of tokens received");
-
-            /*smartLog("Tokens Received = " + await dealToken.balanceOf(icoPoolParty.address), true);
-            const investor2Amount = (await icoPoolParty.investors(_investor2))[0];
-            await icoPoolParty.claimTokens({from: _investor2});
-            assert.equal(await dealToken.balanceOf(_investor2), await calculateTokensDue(dealToken, investor2Amount), "Incorrect number of tokens received");
-
-            smartLog("Tokens Received = " + await dealToken.balanceOf(icoPoolParty.address), true);*/
-
-            /*const investor3Amount = (await icoPoolParty.investors(_investor3))[0];
-            await icoPoolParty.claimTokens({from: _investor3});
-            assert.equal(await dealToken.balanceOf(_investor3), await calculateTokensDue(dealToken, investor3Amount), "Incorrect number of tokens received");
-
-            assert.equal(await genericToken.balanceOf(icoPoolParty.address), 0, "Pool should have 0 tokens");*/
+            const investor3TokensDue = (await icoPoolParty.investors(_investor3))[1];
+            assert.equal((await dealToken.balanceOf(_investor3)).toNumber(), investor3TokensDue.toNumber(), "Incorrect number of tokens received 3");
         });
 
     });
@@ -181,13 +135,6 @@ contract('IcoPoolParty', (accounts) => {
         const feePercent = await icoPoolParty.feePercentage();
         const totalPoolInvestment = await icoPoolParty.totalPoolInvestments();
         return totalPoolInvestment * feePercent / 100;
-    }
-
-    async function calculateTokensDue(_token, _investmentAmount) {
-        const decimals = await _token.decimals();
-        const precision = 10 ** decimals;
-        const groupPrice = await icoPoolParty.groupEthPricePerToken();
-        return parseInt(_investmentAmount * precision / groupPrice);
     }
 
     function sleep(_ms) {

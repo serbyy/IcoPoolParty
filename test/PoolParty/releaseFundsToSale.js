@@ -107,6 +107,17 @@ contract('IcoPoolParty', (accounts) => {
             assert.equal(web3.eth.getBalance(customSale.address), 0, "Sale balance should be 0");
             assert.equal(await icoPoolParty.poolStatus(), Status.DueDiligence, "Pool in incorrect status");
         });
+
+        it('should attempt to leave pool when funds already released', async () => {
+            await sleep(DUE_DILIGENCE_DURATION);
+            const subsidy = await calculateSubsidy();
+            const fee = await calculateFee();
+            await icoPoolParty.releaseFundsToSale({from: _saleOwner, gas: 300000, value: (fee + subsidy)});
+
+            await expectThrow(icoPoolParty.leavePool({from: _investor4}));
+            assert.notEqual(await icoPoolParty.poolStatus(), Status.Claim, "Pool in incorrect status");
+        });
+
     });
 
     describe('Function: releaseFundsToSale() - Generic Sale: Subsidized with automatic claim. ', () => {
@@ -126,6 +137,23 @@ contract('IcoPoolParty', (accounts) => {
             assert.equal(await icoPoolParty.poolStatus(), Status.Claim, "Pool in incorrect status");
             assert.isAbove(await icoPoolParty.totalTokensReceived(), 0, "Should have received tokens");
             assert.equal(web3.eth.getBalance(_deployer), parseInt(ownerSnapshotBalance) + parseInt(fee), "Correct fee not transferred");
+        });
+
+        it('should attempt to release funds in review state when the total pool size is 0', async () => {
+            await sleep(DUE_DILIGENCE_DURATION);
+            await icoPoolParty.leavePool({from: _investor4});
+            assert.equal(await icoPoolParty.poolStatus(), Status.InReview, "Pool in incorrect status");
+            await icoPoolParty.leavePool({from: _investor2});
+            assert.equal(await icoPoolParty.totalPoolInvestments(), 0, "Pool should have nothing in it");
+
+            const subsidy = await calculateSubsidy();
+            assert.equal(subsidy, 0, "Subsidy should be 0");
+            const fee = await calculateFee();
+            assert.equal(fee, 0, "Fee should be 0");
+
+            await icoPoolParty.releaseFundsToSale({from: _saleOwner, gas: 300000, value: (fee + subsidy)});
+            assert.equal(web3.eth.getBalance(customSale.address), 0, "Sale balance should be 0");
+            assert.notEqual(await icoPoolParty.poolStatus(), Status.Claim, "Pool in incorrect status");
         });
     });
 
