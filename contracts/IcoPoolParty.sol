@@ -42,6 +42,7 @@ contract IcoPoolParty is Ownable, usingOraclize {
     uint256 public minPurchaseAmount;
     uint256 public minOraclizeFee;
     uint256 public dueDiligenceDuration;
+    uint256 public poolSubsidyAmount;
 
     address public poolPartyOwnerAddress;
     address public destinationAddress;
@@ -419,6 +420,8 @@ contract IcoPoolParty is Ownable, usingOraclize {
             _amountToRelease = totalPoolInvestments;
         }
 
+        poolSubsidyAmount = _actualSubsidy;
+
         //Transfer the fee to pool party owners
         poolPartyOwnerAddress.transfer(_feeAmount);
 
@@ -477,7 +480,8 @@ contract IcoPoolParty is Ownable, usingOraclize {
 
         if (this.balance >= totalPoolInvestments) {
             poolStatus = Status.Claim;
-            balanceRemainingSnapshot = this.balance;
+            balanceRemainingSnapshot = this.balance.sub(poolSubsidyAmount);
+            msg.sender.transfer(poolSubsidyAmount);
             ClaimedRefundFromIco(address(this), msg.sender, balanceRemainingSnapshot, now);
         } else {
             NoRefundFromIco(address(this), msg.sender, now);
